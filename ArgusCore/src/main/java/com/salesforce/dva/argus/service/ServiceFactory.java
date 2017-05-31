@@ -87,6 +87,8 @@ public final class ServiceFactory {
     Provider<DiscoveryService> _discoveryServiceProvider;
     @Inject
     Provider<BatchService> _batchServiceProvider;
+    @Inject
+    Provider<MetricBrowsingService> _metricBrowsingServiceProvider;
 
 
     //~ Methods **************************************************************************************************************************************
@@ -287,6 +289,14 @@ public final class ServiceFactory {
      */
     public synchronized BatchService getBatchService() {
         return _batchServiceProvider.get();
+    }
+    /**
+     * Returns an instance of the Metric browsing service.
+     *
+     * @return  An instance of the Metric browsing service.
+     */
+    public synchronized MetricBrowsingService getMetricBrowsingService() {
+        return _metricBrowsingServiceProvider.get();
     }
 }
 /* Copyright (c) 2016, Salesforce.com, Inc.  All rights reserved. */

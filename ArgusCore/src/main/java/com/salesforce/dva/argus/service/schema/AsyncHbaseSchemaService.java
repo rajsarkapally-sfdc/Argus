@@ -244,8 +244,8 @@ public class AsyncHbaseSchemaService extends DefaultService implements SchemaSer
         String rowKeyRegex = "^" + _constructRowKey(namespace, scope, metric, tagKey, tagValue, metadata.tableName) + "$";
 
         String scanRowStart=scanFrom==null?Bytes.toString(metadata.startRow):_plusOneNConstructRowKey(scanFrom, metadata.tableName,null);
-        _logger.info("Using table: " + metadata.tableName);
-        _logger.info("Rowkey: " + rowKeyRegex);
+        _logger.debug("Using table: " + metadata.tableName);
+        _logger.debug("Rowkey: " + rowKeyRegex);
         
         _logger.debug("Scan startRow: " + scanRowStart);
         _logger.debug("Scan stopRow: " + metadata.stopRow.toString());
@@ -498,8 +498,8 @@ public class AsyncHbaseSchemaService extends DefaultService implements SchemaSer
         String rowKeyRegex = "^" + _constructRowKey(namespace, scope, metric, tagKey, tagValue, metadata.tableName) + "$";
 
         String scanStartRow=scanFrom==null?Bytes.toString(metadata.startRow): _plusOneNConstructRowKey(scanFrom, metadata.tableName,type);
-        _logger.info("Using table: " + metadata.tableName);
-        _logger.info("Rowkey: " + rowKeyRegex);
+        _logger.debug("Using table: " + metadata.tableName);
+        _logger.debug("Rowkey: " + rowKeyRegex);
         _logger.debug("Scan startRow: " + scanStartRow);
         _logger.debug("Scan stopRow: " + Bytes.toString(metadata.stopRow));
 

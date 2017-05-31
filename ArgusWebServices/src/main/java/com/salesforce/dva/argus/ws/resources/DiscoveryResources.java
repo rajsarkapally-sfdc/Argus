@@ -33,6 +33,7 @@ package com.salesforce.dva.argus.ws.resources;
 
 import com.salesforce.dva.argus.entity.MetricSchemaRecord;
 import com.salesforce.dva.argus.service.DiscoveryService;
+import com.salesforce.dva.argus.service.MetricBrowsingService;
 import com.salesforce.dva.argus.service.SchemaService.RecordType;
 import com.salesforce.dva.argus.ws.annotation.Description;
 import com.salesforce.dva.argus.ws.dto.MetricDiscoveryQueryDto;
@@ -62,6 +63,7 @@ public class DiscoveryResources extends AbstractResource {
     //~ Instance fields ******************************************************************************************************************************
 
     private DiscoveryService _discoveryService = system.getServiceFactory().getDiscoveryService();
+    private MetricBrowsingService _metricBrowsingService = system.getServiceFactory().getMetricBrowsingService();
 
     //~ Methods **************************************************************************************************************************************
 
@@ -113,6 +115,22 @@ public class DiscoveryResources extends AbstractResource {
 
             return _getValueForType(_getSubList(records, limit*(page-1), records.size()), RecordType.fromName(type)); 
         }
+    }
+    
+    /**
+     * Used for metrics browsing
+     *
+     * @param   req             The HTTP request.
+     * @param   query            The field for which to retrieve the descendants
+     *
+     * @return  The filtered set of schema records or unique values if a specific field is requested.
+     */
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/metrics/browsing")
+    @Description("Returns the next level descendants")
+    public List<String> getNextLevelDescendants(@Context HttpServletRequest req,@QueryParam("query") String query) {
+        return _metricBrowsingService.getNextLevelNodes(query);
     }
     
     /**

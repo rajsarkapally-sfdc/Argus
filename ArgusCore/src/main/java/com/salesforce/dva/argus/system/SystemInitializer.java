@@ -57,6 +57,7 @@ import com.salesforce.dva.argus.service.metric.AsyncMetricService;
 import com.salesforce.dva.argus.service.monitor.DefaultMonitorService;
 import com.salesforce.dva.argus.service.schema.CachedDiscoveryService;
 import com.salesforce.dva.argus.service.schema.DefaultDiscoveryService;
+import com.salesforce.dva.argus.service.schema.DefaultMetricBrowsingService;
 import com.salesforce.dva.argus.service.tsdb.CachedTSDBService;
 import com.salesforce.dva.argus.service.warden.DefaultWardenService;
 import com.salesforce.dva.argus.system.SystemConfiguration.Property;
@@ -254,6 +255,7 @@ final class SystemInitializer extends AbstractModule {
         bindConcreteClass(DefaultNamespaceService.class, NamespaceService.class);
         bindConcreteClass(CachedDiscoveryService.class, DiscoveryService.class);
         bindConcreteClass(DefaultDistributedSchedulingLockService.class, DistributedSchedulingLockService.class);
+        bindConcreteClass(DefaultMetricBrowsingService.class, MetricBrowsingService.class);
     }
 
     private <T> void bindConcreteClass(Property property, Class<T> type) {
