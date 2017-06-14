@@ -37,6 +37,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +53,7 @@ import com.salesforce.dva.argus.service.MetricBrowsingService;
 import com.salesforce.dva.argus.service.SchemaService;
 import com.salesforce.dva.argus.service.SchemaService.RecordType;
 import com.salesforce.dva.argus.system.SystemConfiguration;
+
 /**
  * Implementation of metric browsing service
  * @author Raj Sarkapally (rsarkapally@salesforce.com)
@@ -99,203 +103,204 @@ public class DefaultMetricBrowsingService extends DefaultService implements Metr
 	}
 
 	public void buildSchemaTrie(){
-
-		Thread schemaThread = new Thread(new Runnable() {
+		ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
+		
+		Runnable trieJob=new Runnable() {
 			public void run() {
 				long startTime=System.nanoTime();
-				_logger.info("Schema trie buiding started");
+				_logger.debug("Schema trie buiding started");
 				List<Character> allowedChars=_getAllowedCharacters();
 
 				for(Character ch:allowedChars){
 					if(Thread.currentThread().isInterrupted()){
+						_logger.error("Trie building interrupted.");
+						if(!executor.isShutdown()){
+							executor.shutdown();
+						}
 						break;
 					}
 					try{
 						List<MetricSchemaRecord> schemaRecords=schemaService.getUnique(new MetricSchemaRecordQuery("*", ch+"*", "*", "*", "*"), Integer.MAX_VALUE, RecordType.fromName("scope"), null);
 						List<String> scopes=_getUniqueScopes(schemaRecords);
-						_logger.info("Scopes starting with '" + ch + "' are " + scopes.size());
-						//TODO delete the following line
-						int i=0;
+						_logger.debug("Scopes starting with '" + ch + "' are " + scopes.size());
 						for(String scope:scopes){
-							_logger.info("processing scope " + scope + " -- " + i++);
 							_insertWord(scope);
 							_insertAllMetricsGivenScope(scope);
 						}
 					}catch(Throwable th){
-						_logger.error("Error occured while populating scope starting with " + ch + "Reason:" + th.getMessage()); 
+						_logger.error("Error occured while populating scope starting with " + ch + ": Reason:" + th.getMessage()); 
 					}
 
 				}
 				_logger.info("Schema trie buiding completed in " + ((System.nanoTime()-startTime)/1000000000) + " seconds");
-
 			}
-		});
-
-		schemaThread.start();
-
+		};
+		
+	    executor.scheduleAtFixedRate(trieJob, 0, 6, TimeUnit.HOURS);
 	}
 
-	//TODO delete this method as getUnique() should return unique values
-	private List<String> _getUniqueScopes(List<MetricSchemaRecord> list){
-		Set<String> result = new HashSet<>();
-		for(MetricSchemaRecord record:list){
-			result.add(record.getScope());
-		}
-
-		List<String> retValue = new ArrayList<>(result);
-		Collections.sort(retValue);
-		return retValue;
+//TODO delete this method as getUnique() should return unique values
+private List<String> _getUniqueScopes(List<MetricSchemaRecord> list){
+	Set<String> result = new HashSet<>();
+	for(MetricSchemaRecord record:list){
+		result.add(record.getScope());
 	}
 
-	public void _insertWord(String s){
-		_insertWord(s, DEFAULT_DELIMITERS);  
-	}
+	List<String> retValue = new ArrayList<>(result);
+	Collections.sort(retValue);
+	return retValue;
+}
 
-	public void _insertWord(SchemaTrie currTrieNode, String s, Set<Character> delimiters){
-		if(s!=null && s.length()>=0){
-			SchemaTrie nextTrieNode;
-			int currIndex=0;
-			Character currCharacter; 
-			while(currIndex < s.length()){
-				currCharacter=s.charAt(currIndex++);
-				nextTrieNode=currTrieNode.getChildren().get(currCharacter);
-				if(nextTrieNode ==null){
-					nextTrieNode=new SchemaTrie(currCharacter);
-					currTrieNode.getChildren().put(currCharacter, nextTrieNode);
-				}else{
-					nextTrieNode=currTrieNode.getChildren().get(currCharacter);
-				}
-				currTrieNode=nextTrieNode;
-			}
-			if(!delimiters.contains(s.charAt(s.length()-1))){
-				nextTrieNode=new SchemaTrie(DEFAULT_DELIMITER);
-				currTrieNode.getChildren().put(DEFAULT_DELIMITER, nextTrieNode);
-			}
-		}
-	}
+public void _insertWord(String s){
+	_insertWord(s, DEFAULT_DELIMITERS);  
+}
 
-	public void _insertWord(String s, Set<Character> delimiters){
-		_insertWord(trieRoot, s, delimiters); 
-	}
-
-	public List<String> getNextLevelNodes(String prefix){
-		Set<String> result;
-		List<String> returnData=new ArrayList<>();
-
-		if(prefix==null || prefix.length()==0 || (prefix.length()==1 && DEFAULT_DELIMITER.equals(prefix.charAt(0)))){
-			return _getRootNodesFirstCharacters();
-		}else{
-			result= _getDescendants(prefix,DEFAULT_DELIMITERS);
-			returnData.addAll(result);
-			Collections.sort(returnData);
-		}
-
-		return returnData;
-	}
-
-	private List<String> _getRootNodesFirstCharacters(){
-		List<String> result=new ArrayList<>();
-		List<Character> allPossibleNodes=_getAllowedCharacters();
-		allPossibleNodes.forEach(item->{
-			if(trieRoot.getChildren().keySet().contains(item)){
-				result.add(String.valueOf(item));
-			}
-		});
-		return result;
-	}
-
-	public Set<String> _getDescendants(String prefix, Set<Character> delimiters){
-		SchemaTrie trieNode = _findTrieNode(prefix);
-		if(trieNode==null){
-			return new HashSet<>();
-		}
-		String lastWord=_getLastWord(prefix, delimiters);
-		return _getFirstLevelDescendants(trieNode, lastWord, delimiters);
-	}
-
-	private Set<String> _getFirstLevelDescendants(SchemaTrie trieNode, String partialResult, Set<Character> delimiters){
-		Set<String> result=new HashSet<>();
-		for(Character child:trieNode.getChildren().keySet()){
-			if(delimiters.contains(child)){
-				result.add(partialResult);
+public void _insertWord(SchemaTrie currTrieNode, String s, Set<Character> delimiters){
+	if(s!=null && s.length()>=0){
+		SchemaTrie nextTrieNode;
+		int currIndex=0;
+		Character currCharacter; 
+		while(currIndex < s.length()){
+			currCharacter=s.charAt(currIndex++);
+			nextTrieNode=currTrieNode.getChildren().get(currCharacter);
+			if(nextTrieNode ==null){
+				nextTrieNode=new SchemaTrie(currCharacter);
+				currTrieNode.getChildren().put(currCharacter, nextTrieNode);
 			}else{
-				result.addAll(_getFirstLevelDescendants(trieNode.getChildren().get(child), partialResult+child,delimiters));
+				nextTrieNode=currTrieNode.getChildren().get(currCharacter);
 			}
+			currTrieNode=nextTrieNode;
 		}
-		return result;
+		if(!delimiters.contains(s.charAt(s.length()-1))){
+			nextTrieNode=new SchemaTrie(DEFAULT_DELIMITER);
+			currTrieNode.getChildren().put(DEFAULT_DELIMITER, nextTrieNode);
+		}
 	}
-	/**
-	 * Returns the SchemaNode for a last character of given string	
-	 * @param s Given input string
-	 * @return The schemaNode object for a last character
-	 */
-	private SchemaTrie _findTrieNode(String s){
-		if(s==null || s.length()==0 || (s.length()==1 && s.charAt(0)==DEFAULT_DELIMITER)){
-			return trieRoot;
+}
+
+public void _insertWord(String s, Set<Character> delimiters){
+	_insertWord(trieRoot, s, delimiters); 
+}
+
+public List<String> getNextLevelNodes(String prefix){
+	long startTime=System.nanoTime();
+	Set<String> result;
+	List<String> returnData=new ArrayList<>();
+
+	if(prefix==null || prefix.length()==0 || (prefix.length()==1 && DEFAULT_DELIMITER.equals(prefix.charAt(0)))){
+		return _getRootNodesFirstCharacters();
+	}else{
+		result= _getDescendants(prefix,DEFAULT_DELIMITERS);
+		returnData.addAll(result);
+		Collections.sort(returnData);
+	}
+	_logger.info("Search for " +prefix +" completed in " + ((System.nanoTime()-startTime)/1000000000) + " seconds");
+	return returnData;
+}
+
+private List<String> _getRootNodesFirstCharacters(){
+	List<String> result=new ArrayList<>();
+	List<Character> allPossibleNodes=_getAllowedCharacters();
+	allPossibleNodes.forEach(item->{
+		if(trieRoot.getChildren().keySet().contains(item)){
+			result.add(String.valueOf(item));
 		}
-		SchemaTrie result=trieRoot;
-		int index=0;
-		while(result!=null && index<s.length()){
-			result=result.getChildren().get(s.charAt(index++));
+	});
+	return result;
+}
+
+public Set<String> _getDescendants(String prefix, Set<Character> delimiters){
+	SchemaTrie trieNode = _findTrieNode(prefix);
+	if(trieNode==null){
+		return new HashSet<>();
+	}
+	String lastWord=_getLastWord(prefix, delimiters);
+	return _getFirstLevelDescendants(trieNode, lastWord, delimiters);
+}
+
+private Set<String> _getFirstLevelDescendants(SchemaTrie trieNode, String partialResult, Set<Character> delimiters){
+	Set<String> result=new HashSet<>();
+	for(Character child:trieNode.getChildren().keySet()){
+		if(delimiters.contains(child)){
+			result.add(partialResult);
+		}else{
+			result.addAll(_getFirstLevelDescendants(trieNode.getChildren().get(child), partialResult+child,delimiters));
 		}
-		return result;
+	}
+	return result;
+}
+/**
+ * Returns the SchemaNode for a last character of given string	
+ * @param s Given input string
+ * @return The schemaNode object for a last character
+ */
+private SchemaTrie _findTrieNode(String s){
+	if(s==null || s.length()==0 || (s.length()==1 && s.charAt(0)==DEFAULT_DELIMITER)){
+		return trieRoot;
+	}
+	SchemaTrie result=trieRoot;
+	int index=0;
+	while(result!=null && index<s.length()){
+		result=result.getChildren().get(s.charAt(index++));
+	}
+	return result;
+}
+
+
+/**
+ * 
+ * @param s Given input string
+ * @param delimiter Delimiter is a character used to separate the words in a given string
+ * @return The last word of a given string wrt delimiter
+ */
+private String _getLastWord(String s, Set<Character> delimiters){
+
+	StringBuilder result = new StringBuilder();
+	int index=s.length()-1;
+	while(index>=0 && !delimiters.contains(s.charAt(index))){
+		result.append(s.charAt(index--));
+	}
+	return result.reverse().toString();
+}
+
+private List<Character> _getAllowedCharacters(){
+	List<Character> result= new ArrayList<>();
+
+	for(Character ch='a';ch<='z';ch++){
+		result.add(ch);
 	}
 
-
-	/**
-	 * 
-	 * @param s Given input string
-	 * @param delimiter Delimiter is a character used to separate the words in a given string
-	 * @return The last word of a given string wrt delimiter
-	 */
-	private String _getLastWord(String s, Set<Character> delimiters){
-
-		StringBuilder result = new StringBuilder();
-		int index=s.length()-1;
-		while(index>=0 && !delimiters.contains(s.charAt(index))){
-			result.append(s.charAt(index--));
-		}
-		return result.reverse().toString();
+	for(Character ch='A';ch<='Z';ch++){
+		result.add(ch);
 	}
 
-	private List<Character> _getAllowedCharacters(){
-		List<Character> result= new ArrayList<>();
-
-		for(Character ch='a';ch<='z';ch++){
-			result.add(ch);
-		}
-
-		for(Character ch='A';ch<='Z';ch++){
-			result.add(ch);
-		}
-
-		for(Character ch='0';ch<='9';ch++){
-			result.add(ch);
-		}
-
-		result.addAll(Arrays.asList('-','_','.', '/'));
-		return result;
+	for(Character ch='0';ch<='9';ch++){
+		result.add(ch);
 	}
 
-	private void _insertAllMetricsGivenScope(String scope){
-		SchemaTrie rootForMetrics=_findTrieNode(scope+DEFAULT_DELIMITER);
-		Set<String> metrics=_getAllMetricsByScope(scope);
-		for(String metric:metrics){
-			_insertWord(rootForMetrics, metric, DEFAULT_DELIMITERS); 
-		}
+	result.addAll(Arrays.asList('-','_','.', '/'));
+	return result;
+}
 
+private void _insertAllMetricsGivenScope(String scope){
+	SchemaTrie rootForMetrics=_findTrieNode(scope+DEFAULT_DELIMITER);
+	Set<String> metrics=_getAllMetricsByScope(scope);
+	for(String metric:metrics){
+		_insertWord(rootForMetrics, metric, DEFAULT_DELIMITERS); 
 	}
 
-	private Set<String> _getAllMetricsByScope(String scope){
-		Set<String> result=new HashSet<>();
+}
 
-		List<MetricSchemaRecord> list= schemaService.getUnique(new MetricSchemaRecordQuery("*", scope, "*", "*", "*"), Integer.MAX_VALUE, RecordType.fromName("metric"), null);
+private Set<String> _getAllMetricsByScope(String scope){
+	Set<String> result=new HashSet<>();
 
-		for(MetricSchemaRecord record:list){
-			result.add(record.getMetric());
-		}
+	List<MetricSchemaRecord> list= schemaService.getUnique(new MetricSchemaRecordQuery("*", scope, "*", "*", "*"), Integer.MAX_VALUE, RecordType.fromName("metric"), null);
 
-		return result;
+	for(MetricSchemaRecord record:list){
+		result.add(record.getMetric());
 	}
+
+	return result;
+}
 
 }
