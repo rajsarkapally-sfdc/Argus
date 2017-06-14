@@ -122,17 +122,17 @@ public class DefaultMetricBrowsingService extends DefaultService implements Metr
 					try{
 						List<MetricSchemaRecord> schemaRecords=schemaService.getUnique(new MetricSchemaRecordQuery("*", ch+"*", "*", "*", "*"), Integer.MAX_VALUE, RecordType.fromName("scope"), null);
 						List<String> scopes=_getUniqueScopes(schemaRecords);
-						_logger.debug("Scopes starting with '" + ch + "' are " + scopes.size());
+						_logger.debug("Scopes starting with {} are {}",ch, scopes.size());
 						for(String scope:scopes){
 							_insertWord(scope);
 							_insertAllMetricsGivenScope(scope);
 						}
 					}catch(Throwable th){
-						_logger.error("Error occured while populating scope starting with " + ch + ": Reason:" + th.getMessage()); 
+						_logger.error("Error occured while populating scope starting with {} Reason: {}",ch, th.getMessage()); 
 					}
 
 				}
-				_logger.info("Schema trie buiding completed in " + ((System.nanoTime()-startTime)/1000000000) + " seconds");
+				_logger.info("Schema trie buiding completed in {} seconds", ((System.nanoTime()-startTime)/1000000000));
 			}
 		};
 		
@@ -194,7 +194,7 @@ public List<String> getNextLevelNodes(String prefix){
 		returnData.addAll(result);
 		Collections.sort(returnData);
 	}
-	_logger.info("Search for " +prefix +" completed in " + ((System.nanoTime()-startTime)/1000000000) + " seconds");
+	_logger.info("Search for {} completed in {} nano seconds", prefix, System.nanoTime()-startTime);
 	return returnData;
 }
 
@@ -293,9 +293,9 @@ private void _insertAllMetricsGivenScope(String scope){
 
 private Set<String> _getAllMetricsByScope(String scope){
 	Set<String> result=new HashSet<>();
-
+	_logger.debug("Getting metrics for scope {}", scope);
 	List<MetricSchemaRecord> list= schemaService.getUnique(new MetricSchemaRecordQuery("*", scope, "*", "*", "*"), Integer.MAX_VALUE, RecordType.fromName("metric"), null);
-
+	_logger.debug("No. of metrics for scope {} is {}", scope,list.size());
 	for(MetricSchemaRecord record:list){
 		result.add(record.getMetric());
 	}
