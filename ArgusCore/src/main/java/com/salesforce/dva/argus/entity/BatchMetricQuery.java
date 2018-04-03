@@ -1,7 +1,5 @@
 package com.salesforce.dva.argus.entity;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,12 +10,8 @@ import java.util.UUID;
  *
  * @author Colby Guan (cguan@salesforce.com)
  */
+@SuppressWarnings("serial")
 public class BatchMetricQuery implements Serializable {
-
-    //~ Static fields/initializers *******************************************************************************************************************
-
-    private static final String ROOT = "batch/";
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     //~ Instance fields ******************************************************************************************************************************
 
@@ -30,7 +24,7 @@ public class BatchMetricQuery implements Serializable {
 
     //~ Constructors *********************************************************************************************************************************
 
-    public BatchMetricQuery(List<String> expressions, long offset, int ttl, String ownerName) {
+    public BatchMetricQuery(List<String> expressions, long relativeTo, int ttl, String ownerName) {
         _status = Status.QUEUED;
         _ttl = ttl;
         _createdDate = System.currentTimeMillis();
@@ -38,7 +32,7 @@ public class BatchMetricQuery implements Serializable {
         _ownerName = ownerName;
         _queries = new ArrayList<>(expressions.size());
         for (int i = 0; i < expressions.size(); i++) {
-            _queries.add(new AsyncBatchedMetricQuery(expressions.get(i), offset, _batchId, i));
+            _queries.add(new AsyncBatchedMetricQuery(expressions.get(i), relativeTo, _batchId, i));
         }
     }
 

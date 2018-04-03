@@ -49,7 +49,9 @@ import java.security.SecureRandom;
 import java.sql.DriverManager;
 import java.sql.SQLNonTransientConnectionException;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
@@ -67,6 +69,10 @@ public abstract class AbstractTest {
     static {
         tags = new HashMap<>();
         tags.put("source", "unittest");
+        ch.qos.logback.classic.Logger apacheLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("org.apache");
+        apacheLogger.setLevel(ch.qos.logback.classic.Level.OFF);
+        ch.qos.logback.classic.Logger kafkaLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("kafka");
+        kafkaLogger.setLevel(ch.qos.logback.classic.Level.OFF);
     }
 
     protected TestingServer zkTestServer;
@@ -103,13 +109,39 @@ public abstract class AbstractTest {
         String scope = MessageFormat.format(scopeNameTemplate, scopeIndex);
         String metric = MessageFormat.format(metricNameTemplate, metricIndex);
         Metric result = new Metric(scope, metric);
-        Map<Long, String> datapoints = new TreeMap<Long, String>();
+        Map<Long, Double> datapoints = new TreeMap<>();
 
         for (int i = 0; i < datapointCount; i++) {
-            datapoints.put(System.currentTimeMillis(), Long.toString((int) (random.nextDouble() * 500)));
+            datapoints.put(System.currentTimeMillis(), random.nextDouble() * 500);
         }
         result.setDatapoints(datapoints);
         result.setTags(tags);
+        return result;
+    }
+    
+    public List<Metric> createRandomMetrics(String scope, String metric, int count) {
+        List<Metric> result = new ArrayList<>(count);
+
+        scope = scope == null ? createRandomName() : scope;
+
+        String tag = createRandomName();
+
+        for (int i = 0; i < count; i++) {
+            String metricName = metric == null ? createRandomName() : metric;
+            Metric met = new Metric(scope, metricName);
+            int datapointCount = random.nextInt(25) + 1;
+            Map<Long, Double> datapoints = new HashMap<>();
+            long start = System.currentTimeMillis() - 60000L;
+
+            for (int j = 0; j < datapointCount; j++) {
+                datapoints.put(start - (j * 60000L), (double)(random.nextInt(100) + 1));
+            }
+            met.setDatapoints(datapoints);
+            met.setDisplayName(createRandomName());
+            met.setUnits(createRandomName());
+            met.setTag(tag, String.valueOf(i));
+            result.add(met);
+        }
         return result;
     }
 

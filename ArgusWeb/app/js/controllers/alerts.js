@@ -18,64 +18,192 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 'use strict';
+/*global angular:false */
 
 angular.module('argus.controllers.alerts', ['ngResource'])
-.controller('Alerts', ['$scope', 'growl', 'Alerts', function ($scope, growl, Alerts) {
+.controller('Alerts', ['Auth', '$scope', 'growl', 'Alerts', 'TableListService', 'Storage', function (Auth, $scope, growl, Alerts, TableListService, Storage) {
 
-		Alerts.query().$promise.then(function(alerts) {
-			$scope.alerts = alerts;		
+	$scope.colName = {
+		id:'ID',
+		name:'Name',
+		cronEntry:'CRON Entry',
+		createdDate:'Created',
+		modifiedDate:'Last Modified',
+		ownerName:'Owner',
+		state: 'State'
+	};
+	$scope.properties = {
+		title: 'Alert',
+		type: 'alerts'
+	};
+	$scope.tabNames = {
+		userPrivileged: Auth.isPrivileged(),
+		firstTab: Auth.getUsername() + '\'s Alerts',
+		secondTab: 'Shared Alerts',
+		thirdTab: 'All Other Alerts'
+	};
+	$scope.alerts = [];
+	$scope.alertsLoaded = false;
+
+	var alertLists = {
+		usersList: [],
+		sharedList: [],
+		privilegedList: []
+	};
+	var remoteUsername = Auth.getUsername();
+	var userPrivileged = Auth.isPrivileged();
+	var sessionStoredList;
+
+	$scope.getAlerts = function (selectedTab) {
+		if ($scope.alertsLoaded) {
+			// when only user's alerts are loaded but shared tab is chosen: need to start a new API call
+			if (selectedTab === 2 && !sessionStoredList.loadedEverything) {
+				delete $scope.alerts;
+				$scope.alertsLoaded = false;
+				getAllAlerts();
+			} else {
+				switch (selectedTab) {
+					case 2:
+						$scope.alerts = alertLists.sharedList;
+						break;
+					case 3:
+						if (userPrivileged) {
+							$scope.alerts = alertLists.privilegedList;
+							break;
+						}
+						break;
+					default:
+						$scope.alerts = alertLists.usersList;
+				}
+			}
+		}
+	};
+
+	function updateAlertListInSessionStorage (alertLists) {
+		if (Storage.roughSizeOfObject(alertLists) > 2000000) { // limit list size to be 2MB
+			Storage.compressData(alertLists).then(function(compressedData) {
+				sessionStoredList.cachedCompressedData = compressedData;
+			});
+		} else {
+			sessionStoredList.cachedData = alertLists;
+		}
+	}
+
+	function setAlertsAfterLoading (selectedTab) {
+		$scope.alertsLoaded = true;
+		$scope.getAlerts(selectedTab);
+	}
+
+	function getAllAlerts () {
+		Alerts.getMeta().$promise.then(function(alerts) {
+			alertLists = TableListService.getListUnderTab(alerts, remoteUsername, userPrivileged);
+			setAlertsAfterLoading($scope.selectedTab);
+			sessionStoredList.loadedEverything = true;
+			updateAlertListInSessionStorage(alertLists);
 		});
+	}
 
-    $scope.addAlert = function () {
-        var alert = {
-            name: 'new-alert-' + Date.now(),
-            expression: "-1h:scope:metric{tagKey=tagValue}:avg",
-            cronEntry: "0 */4 * * *"
-        };
-        Alerts.save(alert, function (result) {
-            $scope.alerts.push(result);
-            growl.success('Created "' + alert.name + '"');
-        }, function (error) {
-            growl.error('Failed to create "' + alert.name + '"');
-        });
-    };
+	function getUsersAlerts () {
+		Alerts.getNonSharedAlerts().$promise.then(function(alerts) {
+			alertLists = TableListService.getListUnderTab(alerts, remoteUsername, userPrivileged);
+			setAlertsAfterLoading(1);
+			sessionStoredList.loadedEverything = false;
+			updateAlertListInSessionStorage(alertLists);
+		});
+	}
 
-    $scope.enableAlert = function (alert, enabled) {
-        if (!alert.enabled === enabled) {
-            var updated = angular.copy(alert);
-            updated.enabled = enabled;
-            Alerts.update({alertId: alert.id}, updated, function (result) {
-                alert.enabled = enabled;
-                growl.success((enabled ? 'Enabled "' : 'Disabled "') + alert.name + '"');
-            }, function (error) {
-                growl.error('Failed to ' + (enabled ? 'enable "' : 'disable "') + alert.name + '"');
-            });
-        }
-    };
+	function updateList () {
+		$scope.getAlerts($scope.selectedTab);
+		if (sessionStoredList.cachedCompressedData !== '') {
+			// dont update session storage if list is compressed; if the user leaves this page, just re query everything again
+			sessionStoredList.emptyData = true;
+		} else {
+			sessionStoredList.cachedData = alertLists;
+		}
+	}
 
-    $scope.removeAlert = function (alert) {
-        Alerts.delete({alertId: alert.id}, function (result) {
-            $scope.alerts = $scope.alerts.filter(function (element) {
-                return element.id !== alert.id;
-            });
-            growl.success('Deleted "' + alert.name + '"');
-        }, function (error) {
-            growl.error('Failed to delete "' + alert.name + '"');
-        });
-    };
+	$scope.refreshAlerts = function () {
+		sessionStoredList.cachedData = {};
+		sessionStoredList.cachedCompressedData = '';
+		delete $scope.alerts;
+		$scope.alertsLoaded = false;
+		if ($scope.selectedTab === 2) {
+			getAllAlerts();
+		} else {
+			getUsersAlerts();
+		}
+	};
 
-    $scope.colName = {
-        id:'ID',
-        name:'Name',
-        cronEntry:'CRON Entry',
-        createdDate:'Created',
-        modifiedDate:'Last Modified',
-        ownerName:'Owner',
-        state: "State"
-    };
+	$scope.addAlert = function () {
+		var alert = {
+			name: 'new-alert-' + Date.now(),
+			expression: '-1h:scope:metric{tagKey=tagValue}:avg',
+			cronEntry: '0 */4 * * *',
+			shared: $scope.selectedTab === 2
+		};
+		growl.info('Creating "' + alert.name + '"...');
+		Alerts.save(alert, function (result) {
+			// update both scope and session alerts
+			result.expression = '';
+			alertLists = TableListService.addItemToTableList(alertLists, 'alerts', result, remoteUsername, userPrivileged);
+			updateList();
+			growl.success('Created "' + alert.name + '"');
+		}, function () {
+			growl.error('Failed to create "' + alert.name + '"');
+		});
+	};
 
-    $scope.properties = {
-        title: "Alert",
-        type: "alerts"
-    };
+	$scope.removeAlert = function (alert) {
+		growl.info('Deleting "' + alert.name + '"...');
+		Alerts.delete({alertId: alert.id}, function () {
+			alertLists = TableListService.deleteItemFromTableList(alertLists, 'alerts', alert, remoteUsername, userPrivileged);
+			updateList();
+			growl.success('Deleted "' + alert.name + '"');
+		}, function () {
+			growl.error('Failed to delete "' + alert.name + '"');
+		});
+	};
+
+	$scope.enableAlert = function (alert, enabled) {
+		if (alert.enabled !== enabled) {
+			growl.info('Updating "' + alert.name + '"...');
+			Alerts.get({alertId: alert.id}, function(updated) {
+				updated.enabled = enabled;
+				Alerts.update({alertId: alert.id}, updated, function () {
+					alert.enabled = enabled;
+					updateList();
+					growl.success((enabled ? 'Enabled "' : 'Disabled "') + alert.name + '"');
+				}, function () {
+					growl.error('Failed to ' + (enabled ? 'enable "' : 'disable "') + alert.name + '"');
+				});
+			});
+		}
+	};
+
+	// see if there is anything in the session storage
+	sessionStoredList = Storage.getSessionList('alerts');
+	if (sessionStoredList === undefined) {
+		Storage.initializeSessionList('alerts');
+		sessionStoredList = Storage.getSessionList('alerts');
+	}
+	// set up view based on data in session storage or query data
+	if (sessionStoredList.emptyData || sessionStoredList.selectedTab === undefined) {
+		if ($scope.selectedTab === 2) {
+			getAllAlerts();
+		} else {
+			getUsersAlerts();
+		}
+		sessionStoredList.emptyData = false;
+	} else {
+		if (sessionStoredList.cachedCompressedData !== '') {
+			Storage.decompressData(sessionStoredList.cachedCompressedData).then(function(decompressedData) {
+				alertLists = decompressedData;
+				setAlertsAfterLoading($scope.selectedTab);
+			});
+		} else {
+			alertLists = sessionStoredList.cachedData;
+			setAlertsAfterLoading($scope.selectedTab);
+		}
+		$scope.selectedTab = sessionStoredList.selectedTab;
+	}
 }]);

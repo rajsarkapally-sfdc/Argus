@@ -34,6 +34,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.salesforce.dva.argus.sdk.ArgusHttpClient.ArgusResponse;
 import com.salesforce.dva.argus.sdk.ArgusService.EndpointService;
 import com.salesforce.dva.argus.sdk.entity.History;
+import com.salesforce.dva.argus.sdk.exceptions.TokenExpiredException;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.List;
@@ -71,30 +73,15 @@ public class HistoryService extends EndpointService {
      * @return  The change history of the entity.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public List<History> getHistoryForEntity(BigInteger entityId, int limit) throws IOException {
+    public List<History> getHistoryForEntity(BigInteger entityId, int limit) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/job/" + entityId.toString() + "?limit=" + limit;
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
         assertValidResponse(response, requestUrl);
         return fromJson(response.getResult(), new TypeReference<List<History>>() { });
     }
-
-    /**
-     * Returns a specific change history item.
-     *
-     * @param   id  The ID of the history item to retrieve.
-     *
-     * @return  The history item.
-     *
-     * @throws  IOException  If the server cannot be reached.
-     */
-    public History getHistory(BigInteger id) throws IOException {
-        String requestUrl = RESOURCE + "/" + id.toString();
-        ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
-
-        assertValidResponse(response, requestUrl);
-        return fromJson(response.getResult(), History.class);
-    }
+    
 }
 /* Copyright (c) 2016, Salesforce.com, Inc.  All rights reserved. */

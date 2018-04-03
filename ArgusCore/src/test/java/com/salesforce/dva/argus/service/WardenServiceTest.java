@@ -71,7 +71,7 @@ public class WardenServiceTest extends AbstractTest {
         PrincipalUser user = _userService.findUserByUsername("bhinav.sura");
 
         if (user == null) {
-            user = new PrincipalUser("bhinav.sura", "bhinav.sura@salesforce.com");
+            user = new PrincipalUser(_userService.findAdminUser(), "bhinav.sura", "bhinav.sura@salesforce.com");
             user = _userService.updateUser(user);
         }
         _wardenService.reinstateUser(user, SubSystem.API);
@@ -110,24 +110,6 @@ public class WardenServiceTest extends AbstractTest {
     }
 
     @Test
-    public void testSuspendUserIndefinitely() {
-        PrincipalUser user = _userService.findUserByUsername("bhinav.sura");
-        boolean isIndefinitelySuspended = true;
-
-        for (int i = 0; i < 14; i++) {
-            int index = random.nextInt(SubSystem.values().length);
-            SubSystem subSystem = SubSystem.values()[index];
-
-            isIndefinitelySuspended = _wardenService.suspendUser(user, subSystem);
-        }
-        assertFalse(isIndefinitelySuspended);
-        isIndefinitelySuspended = _wardenService.suspendUser(user, SubSystem.API);
-        assertTrue(isIndefinitelySuspended);
-        isIndefinitelySuspended = _wardenService.suspendUser(user, SubSystem.API);
-        assertTrue(isIndefinitelySuspended);
-    }
-
-    @Test
     public void testAssertSubsystemUsePermitted_AdminUser() {
         _wardenService.assertSubSystemUsePermitted(_userService.findAdminUser(), SubSystem.API);
         assertTrue(true);
@@ -139,19 +121,6 @@ public class WardenServiceTest extends AbstractTest {
 
         _wardenService.assertSubSystemUsePermitted(user, SubSystem.API);
         assertTrue(true);
-    }
-
-    @Test(expected = SystemException.class)
-    public void testAssertSubsystemUsePermitted_IndefiniteSuspension() {
-        PrincipalUser user = _userService.findUserByUsername("bhinav.sura");
-
-        for (int i = 0; i < 15; i++) {
-            int index = random.nextInt(SubSystem.values().length);
-            SubSystem subSystem = SubSystem.values()[index];
-
-            _wardenService.suspendUser(user, subSystem);
-        }
-        _wardenService.assertSubSystemUsePermitted(user, SubSystem.API);
     }
 
     @Test(expected = SystemException.class)

@@ -37,9 +37,7 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.sql.Date;
 import java.text.MessageFormat;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -50,7 +48,6 @@ import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
-import org.apache.http.message.BasicNameValuePair;
 import org.slf4j.Logger;
 
 import com.google.gson.Gson;
@@ -159,18 +156,18 @@ public class GusNotifier extends AuditNotifier {
 		String notificationCooldownExpiraton = DATE_FORMATTER.get().format(new Date(context.getCoolDownExpiration()));
 		String metricExpression = context.getAlert().getExpression();
 		String triggerDetails = getTriggerDetails(trigger);
-		String triggerEventValue = context.getTriggerEventValue();
+		double triggerEventValue = context.getTriggerEventValue();
 		Object[] arguments = new Object[] {
 				notificationName, alertName, triggerFiredTime, triggerName, notificationCooldownExpiraton, metricExpression, triggerDetails,
-				triggerEventValue
+				triggerEventValue, String.valueOf(context.getTriggerFiredTime()), context.getTriggeredMetric().getIdentifier()
 		};
 
 		/** gus feed template for notification information. */
 		String gusFeedNotificationTemplate = "Alert Notification {0} is triggered, more info as following:\n" + "Alert {1}  was triggered at {2}\n" +
 				"Notification:   {0}\n" +
 				"Triggered by:   {3}\n" + "Notification is on cooldown until:   {4}\n" +
-				"Evaluated metric expression:   {5}\n" + "Trigger details:  {6}\n" +
-				"Triggering event value:   {7}\n\n";
+				"Evaluated metric expression:   {5}\n" + "Triggered on Metric:   {9}\n" + "Trigger details:  {6}\n" +
+				"Triggering event value:   {7}\n" + "Triggering event timestamp:   {8}\n\n";
 
 		sb.append(MessageFormat.format(gusFeedNotificationTemplate, arguments));
 
@@ -181,34 +178,42 @@ public class GusNotifier extends AuditNotifier {
 			sb.append(MessageFormat.format(gusFeedLinkTemplate, "the annotated series for",
 					super.getMetricUrl(metricToAnnotate, context.getTriggerFiredTime())));
 		}
+		if(context.getNotification().getCustomText() != null && context.getNotification().getCustomText().length()>0){
+			sb.append(context.getNotification().getCustomText()).append("\n>"); 
+		}
 		sb.append(MessageFormat.format(gusFeedLinkTemplate, "alert definition.", super.getAlertUrl(notification.getAlert().getId())));
 		return sb.toString();
 	}
 
 	private void postToGus(Set<String> to, String feed) {
-		// So far works for only one group, will accept a set of string in future.
-		String groupId = to.toArray(new String[to.size()])[0];
-		PostMethod gusPost = new PostMethod(_config.getValue(Property.POST_ENDPOINT.getName(), Property.POST_ENDPOINT.getDefaultValue()));
+		
+		if (Boolean.valueOf(_config.getValue(com.salesforce.dva.argus.system.SystemConfiguration.Property.GUS_ENABLED))) {
+			// So far works for only one group, will accept a set of string in future.
+			String groupId = to.toArray(new String[to.size()])[0];
+			PostMethod gusPost = new PostMethod(_config.getValue(Property.POST_ENDPOINT.getName(), Property.POST_ENDPOINT.getDefaultValue()));
 
-		try {
-			gusPost.setRequestHeader("Authorization", "Bearer " + generateAccessToken());
-			String gusMessage = MessageFormat.format("{0}&subjectId={1}&text={2}",
-					_config.getValue(Property.POST_ENDPOINT.getName(), Property.POST_ENDPOINT.getDefaultValue()), groupId,
-					URLEncoder.encode(feed.toString(), "UTF-8"));
+			try {
+				gusPost.setRequestHeader("Authorization", "Bearer " + generateAccessToken());
+				String gusMessage = MessageFormat.format("{0}&subjectId={1}&text={2}",
+						_config.getValue(Property.POST_ENDPOINT.getName(), Property.POST_ENDPOINT.getDefaultValue()), groupId,
+						URLEncoder.encode(feed.toString(), "UTF-8"));
 
-			gusPost.setRequestEntity(new StringRequestEntity(gusMessage, "application/x-www-form-urlencoded", null));
-			HttpClient httpclient = getHttpClient(_config);
-			int respCode = httpclient.executeMethod(gusPost);
-			_logger.info("Gus message response code '{}'", respCode);
-			if (respCode == 201 || respCode == 204) {
-				_logger.info("Success - send to GUS group {}", groupId);
-			} else {
-				_logger.error("Failure - send to GUS group {}. Cause {}", groupId, gusPost.getResponseBodyAsString());
+				gusPost.setRequestEntity(new StringRequestEntity(gusMessage, "application/x-www-form-urlencoded", null));
+				HttpClient httpclient = getHttpClient(_config);
+				int respCode = httpclient.executeMethod(gusPost);
+				_logger.info("Gus message response code '{}'", respCode);
+				if (respCode == 201 || respCode == 204) {
+					_logger.info("Success - send to GUS group {}", groupId);
+				} else {
+					_logger.error("Failure - send to GUS group {}. Cause {}", groupId, gusPost.getResponseBodyAsString());
+				}
+			} catch (Exception e) {
+				_logger.error("Throws Exception {} when posting to gus group {}", e, groupId);
+			} finally {
+				gusPost.releaseConnection();
 			}
-		} catch (Exception e) {
-			_logger.error("Throws Exception {} when posting to gus group {}", e, groupId);
-		} finally {
-			gusPost.releaseConnection();
+		} else {
+			_logger.info("Sending GUS notification is disabled.  Not sending message to groups '{}'.", to);
 		}
 	}
 

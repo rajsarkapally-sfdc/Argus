@@ -29,20 +29,20 @@ public class AsyncMetricServiceIT extends AbstractTest {
         try {
             // Setup
             Long currentTime = System.currentTimeMillis();
-            Map<Long, String> datapoints = new TreeMap<Long, String>();
+            Map<Long, Double> datapoints = new TreeMap<>();
 
-            datapoints.put(currentTime - 15000000, "1");
-            datapoints.put(currentTime - 14000000, "2");
-            datapoints.put(currentTime - 13000000, "3");
-            datapoints.put(currentTime - 12000000, "4");
-            datapoints.put(currentTime - 11000000, "5");
+            datapoints.put(currentTime - 15000000, 1.0);
+            datapoints.put(currentTime - 14000000, 2.0);
+            datapoints.put(currentTime - 13000000, 3.0);
+            datapoints.put(currentTime - 12000000, 4.0);
+            datapoints.put(currentTime - 11000000, 5.0);
 
             Metric m = new Metric("scope-test-async", "metric-test-async");
 
             m.setDatapoints(datapoints);
             tsdbService.putMetrics(Arrays.asList(new Metric[] { m }));
 
-            String expectedExpression = (currentTime - 10000000) + MessageFormat.format(":{0}:{1}:avg", m.getScope(), m.getMetric());
+            String expectedExpression = "-10000s" + MessageFormat.format(":{0}:{1}:avg", m.getScope(), m.getMetric());
             int expectedTtl = 20;
             String expectedOwnerName = "ownerName-test-async";
             Thread.sleep(3 * 1000);
@@ -51,7 +51,7 @@ public class AsyncMetricServiceIT extends AbstractTest {
             expressions.add(expectedExpression);
 
             // Start async metric pipeline
-            String batchId = metricService.getAsyncMetrics(expressions, -10000000, expectedTtl, expectedOwnerName);
+            String batchId = metricService.getAsyncMetrics(expressions, (currentTime - 10000000), expectedTtl, expectedOwnerName);
 
             batchService.executeNextQuery(3000);
 
@@ -64,7 +64,7 @@ public class AsyncMetricServiceIT extends AbstractTest {
             assertEquals(queries.size(), 1);
             AsyncBatchedMetricQuery actualQuery = queries.get(0);
 
-            Map<Long, String> resultDatapoints = actualQuery.getResult().getDatapoints();
+            Map<Long, Double> resultDatapoints = actualQuery.getResult().getDatapoints();
 
             assertTrue(_datapointsBetween(resultDatapoints, currentTime - 20000000, System.currentTimeMillis() - 10000000));
         } finally {
@@ -74,7 +74,7 @@ public class AsyncMetricServiceIT extends AbstractTest {
         }
     }
 
-    private boolean _datapointsBetween(Map<Long, String> datapoints, long low, long high) {
+    private boolean _datapointsBetween(Map<Long, Double> datapoints, long low, long high) {
         for (Long timestamp : datapoints.keySet()) {
             if (timestamp < low || timestamp > high) {
                 return false;

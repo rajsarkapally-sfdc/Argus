@@ -31,13 +31,10 @@
 	 
 package com.salesforce.dva.argus.ws.filter;
 
-import com.salesforce.dva.argus.service.MonitorService;
-import com.salesforce.dva.argus.system.SystemMain;
-import com.salesforce.dva.argus.ws.listeners.ArgusWebServletListener;
-import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -46,6 +43,12 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.slf4j.LoggerFactory;
+
+import com.salesforce.dva.argus.service.MonitorService;
+import com.salesforce.dva.argus.system.SystemMain;
+import com.salesforce.dva.argus.ws.listeners.ArgusWebServletListener;
 
 /**
  * Servlet filter to push end point performance numbers to monitoring service.
@@ -68,6 +71,7 @@ public class PerfFilter implements Filter {
     private final String DATA_WRITE_RESP_BYTES = "perf.ws.write.txbytes";
     private final String TAGS_METHOD_KEY = "method";
     private final String TAGS_ENDPOINT_KEY = "endpoint";
+    private final String TAGS_USER_KEY = "user";
 
     //~ Methods **************************************************************************************************************************************
 
@@ -104,19 +108,21 @@ public class PerfFilter implements Filter {
     public void init(FilterConfig filterConfig) throws ServletException { }
 
     private void updateCounters(HttpServletRequest req, HttpServletResponse resp, long delta) {
-        String method = req.getMethod();
-        String endPoint = null;
-
         try {
-            String pathInfo = req.getPathInfo().replaceFirst("/", "");
-
-            endPoint = pathInfo.replaceAll("[0-9]+", "-");
-
-            Map<String, String> tags = new HashMap<>();
-
-            tags.put(TAGS_METHOD_KEY, method);
-            if (endPoint != null) {
+        	Map<String, String> tags = new HashMap<>();
+        	
+        	String method = req.getMethod();
+        	tags.put(TAGS_METHOD_KEY, method);
+        	
+            String endPoint = _getEndpoint(req);
+            if (endPoint != null && !endPoint.isEmpty()) {
                 tags.put(TAGS_ENDPOINT_KEY, endPoint);
+            }
+            
+            Object user = req.getAttribute(AuthFilter.USER_ATTRIBUTE_NAME);
+            String username = user != null ? String.class.cast(user) : "NULLUSER";
+            if(!username.isEmpty()) {
+            	tags.put(TAGS_USER_KEY, username);
             }
 
             String contentLength = resp.getHeader("Content-Length");
@@ -138,5 +144,14 @@ public class PerfFilter implements Filter {
             LoggerFactory.getLogger(getClass()).error(e.getMessage(), e);
         }
     }
+
+	private String _getEndpoint(HttpServletRequest req) {
+		String pathInfo = req.getPathInfo();
+		if(pathInfo != null) {
+			return pathInfo.replaceFirst("/", "").replaceAll("[0-9]+", "-");
+		}
+		
+		return null;
+	}
 }
 /* Copyright (c) 2016, Salesforce.com, Inc.  All rights reserved. */

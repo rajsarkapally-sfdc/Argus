@@ -28,24 +28,23 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-	 
+
 package com.salesforce.dva.argus.service.metric.transform;
 
 import com.google.common.primitives.Doubles;
 import com.salesforce.dva.argus.entity.Metric;
 import com.salesforce.dva.argus.service.metric.MetricReader;
 import com.salesforce.dva.argus.system.SystemAssert;
-import org.apache.commons.math.stat.descriptive.moment.Mean;
-import org.apache.commons.math.stat.descriptive.moment.StandardDeviation;
-import org.apache.commons.math.stat.descriptive.summary.Sum;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
+import org.apache.commons.math3.stat.descriptive.summary.Sum;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -57,7 +56,7 @@ import java.util.TreeMap;
 public class DownsampleTransform implements Transform {
 
     //~ Methods **************************************************************************************************************************************
-   
+
 	/**
      * Implements down sampling.
      *
@@ -68,54 +67,58 @@ public class DownsampleTransform implements Transform {
      *
      * @throws  UnsupportedOperationException  If an unknown down sampling type is specified.
      */
-    public static String downsamplerReducer(List<String> values, String reducerType) {
+    public static Double downsamplerReducer(List<Double> values, String reducerType) {
         List<Double> operands = new ArrayList<Double>();
-        for (String str : values) {
-            if (str == null || str.equals("")) {
+        
+        for (Double value : values) {
+            if (value == null) {
                 operands.add(0.0);
             } else {
-                operands.add(Double.parseDouble(str));
+                operands.add(value);
             }
         }
+        
         InternalReducerType type = InternalReducerType.fromString(reducerType);
         switch (type) {
             case AVG:
-                return String.valueOf((new Mean()).evaluate(Doubles.toArray(operands)));
+                return new Mean().evaluate(Doubles.toArray(operands));
             case MIN:
-                return String.valueOf(Collections.min(operands));
+                return Collections.min(operands);
             case MAX:
-                return String.valueOf(Collections.max(operands));
+                return Collections.max(operands);
             case SUM:
-                return String.valueOf((new Sum()).evaluate(Doubles.toArray(operands), 0, operands.size()));
+                return new Sum().evaluate(Doubles.toArray(operands), 0, operands.size());
             case DEVIATION:
-                return String.valueOf((new StandardDeviation()).evaluate(Doubles.toArray(operands)));
+                return new StandardDeviation().evaluate(Doubles.toArray(operands));
             case COUNT:
             	values.removeAll(Collections.singleton(null));
-            	return String.valueOf((float)values.size());
+            	return (double) values.size();
+            case PERCENTILE:
+            	return new Percentile().evaluate(Doubles.toArray(operands), Double.parseDouble(reducerType.substring(1)));
             default:
-                throw new UnsupportedOperationException(reducerType);
+                throw new UnsupportedOperationException("Illegal type: " + reducerType + ". Please provide a valid type.");
         }
     }
 
     /**
      * Creating timestamp for downsampling in order to be consistent with TSDB downsampling func on hour/minute level
-     *      
+     *
      * @param   millitimestamp       original transform timestamp in milliseconds.
      * @param   timeunit  The time unit of down sampling to perform.
      *
      * @return  new timestamp.
      *
      * @throws  UnsupportedOperationException  If an unknown down sampling type is specified.
-     * 
+     *
      * i.e.
      * on hour level, 01:01:30 => 01:00:00
-     * on minute level, 01:01:30 => 01:01:00 
-     * on second level, 01:01:30 => 01:01:30 
+     * on minute level, 01:01:30 => 01:01:00
+     * on second level, 01:01:30 => 01:01:30
      */
     public static Long downsamplerTimestamp(Long millitimestamp, long windowSize) {
     	return millitimestamp-(millitimestamp%windowSize);
     }
-    
+
     //~ Methods **************************************************************************************************************************************
 
     @Override
@@ -125,10 +128,12 @@ public class DownsampleTransform implements Transform {
 
     @Override
     public List<Metric> transform(List<Metric> metrics, List<String> constants) {
-        SystemAssert.requireArgument(metrics != null, "Cannot transform empty metric/metrics");
+        SystemAssert.requireArgument(metrics != null, "Cannot transform null metrics");
+        
         if (metrics.isEmpty()) {
             return metrics;
         }
+       
         SystemAssert.requireArgument(constants.size() == 1,
             "Downsampler Transform can only have exactly one constant which is downsampler expression");
         SystemAssert.requireArgument(constants.get(0).contains("-"), "This downsampler expression is not valid.");
@@ -141,49 +146,69 @@ public class DownsampleTransform implements Transform {
         String windowSizeStr = expArr[0];
         Long windowSize = getWindowInSeconds(windowSizeStr) * 1000;
         String windowUnit = windowSizeStr.substring(windowSizeStr.length() - 1);
-        // init downsample type
-        Set<String> typeSet = new HashSet<String>(Arrays.asList("avg", "min", "max", "sum", "dev", "count"));
         String downsampleType = expArr[1];
 
-        SystemAssert.requireArgument(typeSet.contains(downsampleType), "Please input a valid type.");
         for (Metric metric : metrics) {
             metric.setDatapoints(createDownsampleDatapoints(metric.getDatapoints(), windowSize, downsampleType, windowUnit));
         }
         return metrics;
     }
 
-    private Map<Long, String> createDownsampleDatapoints(Map<Long, String> originalDatapoints, long windowSize, String type, String windowUnit) {
-        Map<Long, String> downsampleDatapoints = new HashMap<Long, String>();
-        TreeMap<Long, String> sortedDatapoints = new TreeMap<Long, String>(originalDatapoints);
-        List<String> values = new ArrayList<>();
+    private Map<Long, Double> createDownsampleDatapoints(Map<Long, Double> originalDatapoints, long windowSize, String type, String windowUnit) {
+        Map<Long, Double> downsampleDatapoints = new HashMap<>();
+        TreeMap<Long, Double> sortedDatapoints = new TreeMap<>(originalDatapoints);
+        
         if (sortedDatapoints.isEmpty()){
         	return downsampleDatapoints;
         }
-        Long windowStart = downsamplerTimestamp(sortedDatapoints.firstKey(),windowSize);
+        
+        Long windowStart = getWindowStartTime(sortedDatapoints.firstKey(),windowUnit,windowSize);
 
-        for (Map.Entry<Long, String> entry : sortedDatapoints.entrySet()) {
+        List<Double> values = new ArrayList<>();
+        for (Map.Entry<Long, Double> entry : sortedDatapoints.entrySet()) {
             Long timestamp = entry.getKey();
-            String value = entry.getValue();
+            Double value = entry.getValue();
 
             if (values.isEmpty()) {
                 values.add(value);
             } else {
                 if (timestamp >= windowStart + windowSize) {
-                    String fillingValue = downsamplerReducer(values, type);
+                    Double fillingValue = downsamplerReducer(values, type);
                     downsampleDatapoints.put(windowStart, fillingValue);
                     values.clear();
-                    windowStart = downsamplerTimestamp(timestamp, windowSize);
+                    windowStart = getWindowStartTime(windowStart, timestamp, windowSize); 
                 }
                 values.add(value);
             }
         }
         if (!values.isEmpty()) {
-            String fillingValue = downsamplerReducer(values, type);
+            Double fillingValue = downsamplerReducer(values, type);
             downsampleDatapoints.put(windowStart, fillingValue);
         }
         return downsampleDatapoints;
     }
 
+    private long getWindowStartTime(long previousStartTime, long firstDatapoint, long windowSize){
+    	long result=previousStartTime;
+    	while(firstDatapoint>=(result+windowSize)){
+    		result+=windowSize;
+    	}
+    	return result;
+    }
+    
+    private long getWindowStartTime(long time, String windowUnit, long windowSize){
+    	switch (windowUnit) {
+		case "m":
+			return truncateTimeField(time, Calendar.SECOND);
+		case "h":
+			return truncateTimeField(time, Calendar.MINUTE);
+		case "d":
+			return truncateTimeField(time, Calendar.HOUR_OF_DAY);
+		default:
+			return truncateTimeField(time, Calendar.MILLISECOND);
+		}
+    }
+    
     @Override
     public String getResultScopeName() {
         return TransformFactory.Function.DOWNSAMPLE.name();
@@ -204,6 +229,25 @@ public class DownsampleTransform implements Transform {
     @Override
     public List<Metric> transform(List<Metric>... listOfList) {
         throw new UnsupportedOperationException("Downsample doesn't need list of list!");
+    }
+    
+    private long truncateTimeField(long time, int field){
+    	long result, secondOffset=60, minuteOffset=60*secondOffset, HourOffset=24*minuteOffset;
+    	
+    	result=time/1000;
+    	switch(field){
+    	case Calendar.SECOND:
+    		result=result-(result%secondOffset);
+    		break;
+    	case Calendar.MINUTE:
+    		result=result-(result%minuteOffset);
+    		break;
+    	case Calendar.HOUR:
+    	case Calendar.HOUR_OF_DAY:
+    		result=result-(result%HourOffset);
+    	}
+    	
+    	return result*1000;
     }
 }
 /* Copyright (c) 2016, Salesforce.com, Inc.  All rights reserved. */

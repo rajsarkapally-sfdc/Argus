@@ -48,25 +48,25 @@ public class MovingTransformTest {
     @Test
     public void testMovingDefaultTransformWithTimeInterval() {
         Transform movingTransform = new MetricMappingTransform(new MovingValueMapping());
-        Map<Long, String> datapoints = new HashMap<Long, String>();
+        Map<Long, Double> datapoints = new HashMap<Long, Double>();
 
-        datapoints.put(1000L, "1");
-        datapoints.put(2000L, "2");
-        datapoints.put(3000L, "3");
-        datapoints.put(5000L, "10");
-        datapoints.put(6000L, "2");
-        datapoints.put(7000L, "3");
-        datapoints.put(10000L, "15");
+        datapoints.put(1000L, 1.0);
+        datapoints.put(2000L, 2.0);
+        datapoints.put(3000L, 3.0);
+        datapoints.put(5000L, 10.0);
+        datapoints.put(6000L, 2.0);
+        datapoints.put(7000L, 3.0);
+        datapoints.put(10000L, 15.0);
 
-        Map<Long, String> actual = new HashMap<Long, String>();
+        Map<Long, Double> actual = new HashMap<Long, Double>();
 
-        actual.put(1000L, "1.0");
-        actual.put(2000L, "1.5");
-        actual.put(3000L, "2.5");
-        actual.put(5000L, "10.0");
-        actual.put(6000L, "6.0");
-        actual.put(7000L, "2.5");
-        actual.put(10000L, "15.0");
+        actual.put(1000L, 1.0);
+        actual.put(2000L, 1.5);
+        actual.put(3000L, 2.5);
+        actual.put(5000L, 10.0);
+        actual.put(6000L, 6.0);
+        actual.put(7000L, 2.5);
+        actual.put(10000L, 15.0);
 
         Metric metric = new Metric(TEST_SCOPE, TEST_METRIC);
 
@@ -89,25 +89,25 @@ public class MovingTransformTest {
     @Test
     public void testMovingMedianTransformWithTimeInterval() {
         Transform movingTransform = new MetricMappingTransform(new MovingValueMapping());
-        Map<Long, String> datapoints = new HashMap<Long, String>();
+        Map<Long, Double> datapoints = new HashMap<Long, Double>();
 
-        datapoints.put(1000L, "1");
-        datapoints.put(2000L, "2");
-        datapoints.put(3000L, "3");
-        datapoints.put(5000L, "10");
-        datapoints.put(6000L, "2");
-        datapoints.put(7000L, "3");
-        datapoints.put(10000L, "15");
+        datapoints.put(1000L, 1.0);
+        datapoints.put(2000L, 2.0);
+        datapoints.put(3000L, 3.0);
+        datapoints.put(5000L, 10.0);
+        datapoints.put(6000L, 2.0);
+        datapoints.put(7000L, 3.0);
+        datapoints.put(10000L, 15.0);
 
-        Map<Long, String> actual = new HashMap<Long, String>();
+        Map<Long, Double> actual = new HashMap<Long, Double>();
 
-        actual.put(1000L, "1.0");
-        actual.put(2000L, "1.5");
-        actual.put(3000L, "2.5");
-        actual.put(5000L, "10.0");
-        actual.put(6000L, "6.0");
-        actual.put(7000L, "2.5");
-        actual.put(10000L, "15.0");
+        actual.put(1000L, 1.0);
+        actual.put(2000L, 1.5);
+        actual.put(3000L, 2.5);
+        actual.put(5000L, 10.0);
+        actual.put(6000L, 6.0);
+        actual.put(7000L, 2.5);
+        actual.put(10000L, 15.0);
 
         Metric metric = new Metric(TEST_SCOPE, TEST_METRIC);
 
@@ -127,29 +127,71 @@ public class MovingTransformTest {
         assertEquals(result.get(0).getDatapoints().size(), actual.size());
         assertEquals(result.get(0).getDatapoints(), actual);
     }
+    
+    @Test
+    public void testMovingSumTransformWithTimeInterval() {
+        Transform movingTransform = new MetricMappingTransform(new MovingValueMapping());
+        Map<Long, Double> datapoints = new HashMap<Long, Double>();
+
+        datapoints.put(1000L, 1.0);
+        datapoints.put(2000L, 2.0);
+        datapoints.put(3000L, 3.0);
+        datapoints.put(5000L, 10.0);
+        datapoints.put(6000L, 2.0);
+        datapoints.put(7000L, 3.0);
+        datapoints.put(10000L, 15.0);
+
+        Map<Long, Double> actual = new HashMap<Long, Double>();
+
+        actual.put(1000L, 1.0);
+        actual.put(2000L, 3.0);
+        actual.put(3000L, 5.0);
+        actual.put(5000L, 10.0);
+        actual.put(6000L, 12.0);
+        actual.put(7000L, 5.0);
+        actual.put(10000L, 15.0);
+
+        Metric metric = new Metric(TEST_SCOPE, TEST_METRIC);
+
+        metric.setDatapoints(datapoints);
+
+        List<Metric> metrics = new ArrayList<Metric>();
+
+        metrics.add(metric);
+
+        List<String> constants = new ArrayList<String>(1);
+
+        constants.add("2s");
+        constants.add("sum");
+
+        List<Metric> result = movingTransform.transform(metrics, constants);
+
+        assertEquals(result.get(0).getDatapoints().size(), actual.size());
+        assertEquals(result.get(0).getDatapoints(), actual);
+    }
 
     @Test
     public void testMovingAvgTransformWithTimeIntervalHasNullValue() {
         Transform movingTransform = new MetricMappingTransform(new MovingValueMapping());
-        Map<Long, String> datapoints = new HashMap<Long, String>();
+        Map<Long, Double> datapoints = new HashMap<>();
 
         datapoints.put(1000L, null);
         datapoints.put(2000L, null);
         datapoints.put(3000L, null);
-        datapoints.put(5000L, "10");
-        datapoints.put(6000L, "2");
-        datapoints.put(7000L, "3");
-        datapoints.put(10000L, "15");
+        datapoints.put(5000L, 10.0);
+        datapoints.put(6000L, 2.0);
+        datapoints.put(7000L, 3.0);
+        datapoints.put(10000L, 15.0);
 
-        Map<Long, String> actual = new HashMap<Long, String>();
+        Map<Long, Double> actual = new HashMap<>();
 
-        actual.put(1000L, "0.0");
-        actual.put(2000L, "0.0");
-        actual.put(3000L, "0.0");
-        actual.put(5000L, "10.0");
-        actual.put(6000L, "6.0");
-        actual.put(7000L, "2.5");
-        actual.put(10000L, "15.0");
+        actual.put(1000L, 0.0);
+        actual.put(2000L, 0.0);
+        actual.put(3000L, 0.0);
+        actual.put(5000L, 10.0);
+        actual.put(6000L, 6.0);
+        actual.put(7000L, 2.5);
+        actual.put(10000L, 15.0);
 
         Metric metric = new Metric(TEST_SCOPE, TEST_METRIC);
 
@@ -173,25 +215,25 @@ public class MovingTransformTest {
     @Test
     public void testMovingMedianTransformWithTimeIntervalHasNullValue() {
         Transform movingTransform = new MetricMappingTransform(new MovingValueMapping());
-        Map<Long, String> datapoints = new HashMap<Long, String>();
+        Map<Long, Double> datapoints = new HashMap<>();
 
         datapoints.put(1000L, null);
-        datapoints.put(2000L, "2");
-        datapoints.put(3000L, "4");
-        datapoints.put(5000L, "10");
-        datapoints.put(6000L, "2");
-        datapoints.put(7000L, "3");
-        datapoints.put(10000L, "15");
+        datapoints.put(2000L, 2.0);
+        datapoints.put(3000L, 4.0);
+        datapoints.put(5000L, 10.0);
+        datapoints.put(6000L, 2.0);
+        datapoints.put(7000L, 3.0);
+        datapoints.put(10000L, 15.0);
 
-        Map<Long, String> actual = new HashMap<Long, String>();
+        Map<Long, Double> actual = new HashMap<Long, Double>();
 
-        actual.put(1000L, "0.0");
-        actual.put(2000L, "1.0");
-        actual.put(3000L, "3.0");
-        actual.put(5000L, "10.0");
-        actual.put(6000L, "6.0");
-        actual.put(7000L, "2.5");
-        actual.put(10000L, "15.0");
+        actual.put(1000L, 0.0);
+        actual.put(2000L, 1.0);
+        actual.put(3000L, 3.0);
+        actual.put(5000L, 10.0);
+        actual.put(6000L, 6.0);
+        actual.put(7000L, 2.5);
+        actual.put(10000L, 15.0);
 
         Metric metric = new Metric(TEST_SCOPE, TEST_METRIC);
 
@@ -215,17 +257,17 @@ public class MovingTransformTest {
     @Test
     public void movingRunOutOfPointsBeforeHittingwindow() {
         Transform movingTransform = new MetricMappingTransform(new MovingValueMapping());
-        Map<Long, String> datapoints = new HashMap<Long, String>();
+        Map<Long, Double> datapoints = new HashMap<Long, Double>();
 
-        datapoints.put(0L, "3.0");
-        datapoints.put(60000L, "6.0");
-        datapoints.put(120000L, "9.0");
+        datapoints.put(0L, 3.0);
+        datapoints.put(60000L, 6.0);
+        datapoints.put(120000L, 9.0);
 
-        Map<Long, String> actual = new HashMap<Long, String>();
+        Map<Long, Double> actual = new HashMap<Long, Double>();
 
-        actual.put(0L, "3.0");
-        actual.put(60000L, "4.5");
-        actual.put(120000L, "7.5");
+        actual.put(0L, 3.0);
+        actual.put(60000L, 4.5);
+        actual.put(120000L, 7.5);
 
         Metric metric = new Metric(TEST_SCOPE, TEST_METRIC);
 
@@ -249,13 +291,13 @@ public class MovingTransformTest {
     @Test
     public void movingWithOnlyOnePoint() {
         Transform movingTransform = new MetricMappingTransform(new MovingValueMapping());
-        Map<Long, String> datapoints = new HashMap<Long, String>();
+        Map<Long, Double> datapoints = new HashMap<Long, Double>();
 
-        datapoints.put(0L, "3.0");
+        datapoints.put(0L, 3.0);
 
-        Map<Long, String> actual = new HashMap<Long, String>();
+        Map<Long, Double> actual = new HashMap<Long, Double>();
 
-        actual.put(0L, "3.0");
+        actual.put(0L, 3.0);
 
         Metric metric = new Metric(TEST_SCOPE, TEST_METRIC);
 
@@ -277,7 +319,7 @@ public class MovingTransformTest {
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void transform_ShouldThrowUnsupportedOperationExceptionWhenNoWindowSizeSpecified() {
+    public void transform_ShouldThrowUnsupportedOperationExceptionWhenNoConstantsAreSpecified() {
         List<Metric> metrics = new ArrayList<Metric>();
 
         metrics.add(new Metric(TEST_SCOPE, TEST_METRIC));
@@ -286,9 +328,22 @@ public class MovingTransformTest {
 
         movingTransform.transform(metrics);
     }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void transform_ShouldThrowIllegalArgumentExceptionWhenNoWindowSizeIsSpecified() {
+        List<Metric> metrics = new ArrayList<Metric>();
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void transform_ShouldThrowUnsupportedOperationExceptionWhenTypeIsInvalid() {
+        metrics.add(new Metric(TEST_SCOPE, TEST_METRIC));
+
+        Transform movingTransform = new MetricMappingTransform(new MovingValueMapping());
+        
+        List<String> constants = new ArrayList<String>(1);
+
+        movingTransform.transform(metrics, constants);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void transform_ShouldThrowIllegalArgumentExceptionWhenTypeIsInvalid() {
         List<Metric> metrics = new ArrayList<Metric>();
 
         metrics.add(new Metric(TEST_SCOPE, TEST_METRIC));
@@ -298,7 +353,7 @@ public class MovingTransformTest {
 
         constants.add("2");
         constants.add("foobar");
-        movingTransform.transform(metrics);
+        movingTransform.transform(metrics, constants);
     }
 
     @Test

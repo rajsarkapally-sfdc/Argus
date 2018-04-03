@@ -58,9 +58,11 @@ public class NotificationDto extends EntityDTO {
     private List<String> subscriptions;
     private List<String> metricsToAnnotate;
     private long cooldownPeriod;
-    private long cooldownExpiration;
     private List<BigInteger> triggersIds = new ArrayList<>();
     private BigInteger alertId;
+    private String customText;
+    private int severityLevel = 5;
+    private boolean isSRActionable;
 
     //~ Methods **************************************************************************************************************************************
 
@@ -202,24 +204,6 @@ public class NotificationDto extends EntityDTO {
     }
 
     /**
-     * Returns the cool down expiration time in milliseconds.
-     *
-     * @return  The cool down expiration time
-     */
-    public long getCooldownExpiration() {
-        return cooldownExpiration;
-    }
-
-    /**
-     * Sets the cool down expiration time.
-     *
-     * @param  cooldownExpiration  The cool down expiration time
-     */
-    public void setCooldownExpiration(long cooldownExpiration) {
-        this.cooldownExpiration = cooldownExpiration;
-    }
-
-    /**
      * Returns the list of trigger Ids.
      *
      * @return  The list of trigger Ids.
@@ -254,13 +238,66 @@ public class NotificationDto extends EntityDTO {
     public void setAlertId(BigInteger alertId) {
         this.alertId = alertId;
     }
+   
+    /**
+     * Returns the custom text .
+     *
+     * @return  The custom text.
+     */
+    public String getCustomText() {
+		return customText;
+	}
+    /**
+     * Sets the custom text.
+     *
+     * @param  customText  The custom text.
+     */
+	public void setCustomText(String customText) {
+		this.customText = customText;
+	}
 
+    /**
+     * Indicates whether the notification is monitored by SR
+     *
+     * @return  True if notification is monitored by SR
+     */
+    public boolean getSRActionable() {
+        return isSRActionable;
+    }
+
+    /**
+     * Specifies whether the notification should be monitored by SR (actionable by SR)
+     *
+     * @param  isSRActionable  True if  SR should monitor the notification
+     */
+    public void setSRActionable(boolean isSRActionable) {
+        this.isSRActionable = isSRActionable;
+    }
+    
+    /**
+     * Gets the severity level of notification
+     *
+     * @return  The severity level
+     */
+    public int getSeverityLevel() {
+        return severityLevel;
+    }
+
+    /**
+     * Sets the severity level of notification
+     *
+     * @param  severityLevel  The severity level (1-5, 1 - Most Severe, 5 - Least Severe)
+     * @throws  IllegalArgumentException  If an error occurs.
+     */
+    public void setSeverityLevel(int severityLevel) {
+        this.severityLevel = severityLevel;
+    }    
+    
     @Override
     public Object createExample() {
         NotificationDto result = new NotificationDto();
 
         result.setAlertId(BigInteger.ONE);
-        result.setCooldownExpiration(System.currentTimeMillis() + 300000);
         result.setCooldownPeriod(300000);
         result.setCreatedById(BigInteger.TEN);
         result.setCreatedDate(new Date());
@@ -270,7 +307,10 @@ public class NotificationDto extends EntityDTO {
         result.setModifiedDate(new Date());
         result.setName("sample-notification");
         result.setNotifierName("email");
+        result.setSeverityLevel(5);
+        result.setSRActionable(false);
         result.setSubscriptions(Arrays.asList(new String[] { "joe.smith@salesforce.com" }));
+        result.setCustomText("Sample custom text to include in the notification"); 
         return result;
     }
 }

@@ -182,6 +182,8 @@ public interface MonitorService extends Service {
         JOBS_MAX("argus.core", "jobs.max"),
         ALERTS_SCHEDULED("argus.core", "alerts.scheduled"),
         ALERTS_EVALUATED("argus.core", "alerts.evaluated"),
+        NOTIFICATIONS_SENT("argus.core", "notifications.sent"),
+        TRIGGERS_VIOLATED("argus.core", "triggers.violated"),
         ALERTS_MAX("argus.core", "alerts.max"),
         DATAPOINT_READS("argus.core", "datapoint.reads"),
         DATAPOINT_WRITES("argus.core", "datapoint.writes"),
@@ -190,7 +192,11 @@ public interface MonitorService extends Service {
         MONTHLY_USERS("argus.core", "users.monthly"),
         COMMIT_CLIENT_DATAPOINT_WRITES("argus.core", "commit.client.datapoint.writes"),
     	COMMIT_CLIENT_METRIC_WRITES("argus.core", "commit.client.metric.writes"),
-        SCHEMACOMMIT_CLIENT_METRIC_WRITES("argus.core", "schemacommit.client.metric.writes");
+        SCHEMACOMMIT_CLIENT_METRIC_WRITES("argus.core", "schemacommit.client.metric.writes"),
+    	SCHEMARECORDS_WRITTEN("argus.core", "schemarecords.written"),
+    	SCHEMARECORDS_WRITE_LATENCY("argus.core", "schemarecords.write.latency"),
+    	SCHEMARECORDS_QUERY_COUNT("argus.core", "schemarecords.query.count"),
+    	SCHEMARECORDS_QUERY_LATENCY("argus.core", "schemarecords.query.latency");
 
         private final String _scope;
         private final String _metric;

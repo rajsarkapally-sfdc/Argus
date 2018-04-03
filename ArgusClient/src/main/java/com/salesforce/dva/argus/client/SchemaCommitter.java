@@ -49,7 +49,7 @@ class SchemaCommitter extends AbstractCommitter {
 
     //~ Static fields/initializers *******************************************************************************************************************
 
-    private static final int METRIC_MESSAGES_CHUNK_SIZE = 100;
+    private static final int METRIC_MESSAGES_CHUNK_SIZE = 2000;
 
     //~ Constructors *********************************************************************************************************************************
 
@@ -84,7 +84,7 @@ class SchemaCommitter extends AbstractCommitter {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Throwable ex) {
-                LOGGER.info("Error occured while committing metrics for schema records creation.", ex);
+                LOGGER.info("Error occurred while committing metrics for schema records creation.", ex);
             }
         }
         LOGGER.warn(MessageFormat.format("Schema committer thread interrupted. {} metrics committed by this thread.", jobCounter.get()));

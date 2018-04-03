@@ -47,6 +47,8 @@ import static com.salesforce.dva.argus.system.SystemAssert.requireArgument;
  */
 @SuppressWarnings("serial")
 public abstract class TSDBEntity implements Serializable {
+	
+    private static final int NUM_TAGS = 50;
 
     //~ Instance fields ******************************************************************************************************************************
 
@@ -151,21 +153,31 @@ public abstract class TSDBEntity implements Serializable {
      * @param  tags  The new tags for the metric.
      */
     public void setTags(Map<String, String> tags) {
+    	TSDBEntity.validateTags(tags);
+    	
         _tags.clear();
         if (tags != null) {
-            Map<String, String> updatedTags = new TreeMap<>();
-
-            for (Map.Entry<String, String> entry : tags.entrySet()) {
-                String key = entry.getKey();
-
-                requireArgument(!Metric.ReservedField.isReservedField(key), MessageFormat.format("Tag {0} is a reserved tag name.", key));
-                updatedTags.put(key, entry.getValue());
-            }
-            _tags.putAll(updatedTags);
+            _tags.putAll(tags);
         }
     }
 
-    /**
+    public static void validateTags(Map<String, String> tags) {
+    	if(tags != null) {
+    		requireArgument(tags.size() <= NUM_TAGS, "No. of tags = " + tags.size() + ". Too many tags!!!");
+        	
+        	for(Map.Entry<String, String> entry : tags.entrySet()) {
+        		String key = entry.getKey();
+                String value = entry.getValue();
+                
+        		requireArgument(key != null && !key.isEmpty(), "Tag key cannot be null or empty");
+            	requireArgument(!Metric.ReservedField.isReservedField(key), MessageFormat.format("Tag {0} is a reserved tag name.", key));
+                requireArgument(value != null && !value.isEmpty(), "Tag value null or empty for tag key: " + key);
+                //TODO: Validate that the tags contain only permissible characters.
+        	}
+    	}
+	}
+
+	/**
      * Sets a single tag. The tag may not use any of the reserved tag names.
      *
      * @param  key    The name of the tag. May not be null or empty.
@@ -237,6 +249,7 @@ public abstract class TSDBEntity implements Serializable {
         if (value == null || value.isEmpty()) {
             _tags.remove(key);
         } else {
+        	requireArgument(_tags.size() < NUM_TAGS || _tags.containsKey(key), "No. of tags = " + _tags.size() + ". Cannot add more tags!!!");
             _tags.put(key, value);
         }
     }

@@ -54,7 +54,7 @@ public class LoggingFilter implements Filter {
     public void destroy() { }
 
     /**
-     * Logs basic session information, request count and timing information.
+     * Logs username, request count and timing information.
      *
      * @param   request   The HTTP request.
      * @param   response  The HTTP response.
@@ -68,7 +68,7 @@ public class LoggingFilter implements Filter {
         HttpServletRequest req = HttpServletRequest.class.cast(request);
         String url = req.getRequestURI();
 
-        LoggerFactory.getLogger(getClass()).info("Request started: {}", url);
+        LoggerFactory.getLogger(getClass()).debug("Request started: {}", url);
 
         long start = System.currentTimeMillis();
 

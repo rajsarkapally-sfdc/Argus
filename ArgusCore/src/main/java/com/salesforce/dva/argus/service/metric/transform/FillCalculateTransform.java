@@ -31,6 +31,7 @@
 	 
 package com.salesforce.dva.argus.service.metric.transform;
 
+import com.google.common.primitives.Doubles;
 import com.salesforce.dva.argus.entity.Metric;
 import com.salesforce.dva.argus.system.SystemAssert;
 import java.util.ArrayList;
@@ -40,9 +41,11 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
+
 /**
  * Creates a constant line based on the calculated value.<br/>
- * <tt>FILL_CALCUALTE(<expr>, <interval>, <interval>, <constant>)</tt>
+ * <tt>FILL_CALCULATE(<expr>, <interval>, <interval>, <constant>)</tt>
  *
  * @param   metrics   The list of metrics to evaluate. Cannot be null or empty.
  * @param   interval  The interval at which to fill data points. For example 10m would create data points every 10 minutes if a gap greater than 10
@@ -61,14 +64,14 @@ public class FillCalculateTransform implements Transform {
 
     //~ Methods **************************************************************************************************************************************
 
-    private static Map<Long, String> fillCalculateMetricTransform(Metric metric, String calculationType) {
+    private static Map<Long, Double> fillCalculateMetricTransform(Metric metric, String calculationType) {
         // Calculate min, max, avg, dev, or a percentile value
-        String result = calculateResult(metric, calculationType);
+        Double result = calculateResult(metric, calculationType);
 
         // return a new time series with the constant values for each time stamp
-        Map<Long, String> resultMap = new TreeMap<>();
+        Map<Long, Double> resultMap = new TreeMap<>();
 
-        for (Map.Entry<Long, String> entry : metric.getDatapoints().entrySet()) {
+        for (Map.Entry<Long, Double> entry : metric.getDatapoints().entrySet()) {
             Long timestamp = entry.getKey();
 
             resultMap.put(timestamp, result);
@@ -76,10 +79,10 @@ public class FillCalculateTransform implements Transform {
         return resultMap;
     }
 
-    private static String calculateResult(Metric metric, String calculationType) {
+    private static Double calculateResult(Metric metric, String calculationType) {
         // Find the values from metric
-        List<String> valueList = new ArrayList<>(metric.getDatapoints().values());
-        String result = null;
+        List<Double> valueList = new ArrayList<>(metric.getDatapoints().values());
+        Double result = null;
 
         // if percentile transform requested, parse the string p0...p100.
         String rex = "^[pP](100|[0-9]{1,2})$";
@@ -89,7 +92,7 @@ public class FillCalculateTransform implements Transform {
         if (matcher.matches()) {
             Integer target = Integer.valueOf(matcher.group(1));
 
-            result = PercentileTransform.calculateNthPercentile(valueList, target);
+            result = new Percentile().evaluate(Doubles.toArray(valueList), target);
         } else {
             switch (calculationType) {
                 case "min":
@@ -149,14 +152,16 @@ public class FillCalculateTransform implements Transform {
 
             for (Metric metric : fillCalculateMetricList) {
                 Transform fillTransform = new FillTransform();
-                String calculateResult = calculateResult(metric, calculationType);
+                Double calculateResult = calculateResult(metric, calculationType);
 
                 // replace the 3rd value of constants with results.
                 List<String> newConstants = new ArrayList<String>();
 
                 newConstants.add(constants.get(1));
                 newConstants.add(constants.get(2));
-                newConstants.add(calculateResult);
+                newConstants.add(String.valueOf(calculateResult));
+                newConstants.add(String.valueOf(System.currentTimeMillis()));
+                newConstants.add("false");
 
                 List<Metric> singleMetric = new ArrayList<>();
 

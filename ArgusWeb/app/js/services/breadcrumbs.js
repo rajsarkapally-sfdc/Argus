@@ -1,8 +1,8 @@
 /*! Copyright (c) 2016, Salesforce.com, Inc.
  * All rights reserved.
- *  
+ *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
- *   
+ *
  *      Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
@@ -17,38 +17,40 @@
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+'use strict';
+/*global angular:false */
 
 angular.module('argus.services.breadcrumbs', [])
 .factory('breadcrumbs', ['$rootScope', '$location', function($rootScope, $location) {
 
-  var breadcrumbs = [];
-  var breadcrumbsService = {};
+	var breadcrumbs = [];
+	var breadcrumbsService = {};
 
-  // we want to update breadcrumbs only when a route is actually changed
-  // as $location.path() will get updated imediatelly (even if route change fails!)
-  $rootScope.$on('$routeChangeSuccess', function(event, current) {
+	// we want to update breadcrumbs only when a route is actually changed
+	// as $location.path() will get updated imediatelly (even if route change fails!)
+	$rootScope.$on('$routeChangeSuccess', function() {
 
-    var _contextRootPath = $location.absUrl().substr(0, $location.absUrl().lastIndexOf("#"));
-    var pathElements = $location.path().split('/'), result = [], i;
-    var breadcrumbPath = function (index) {
-      return _contextRootPath + '#/' + (pathElements.slice(0, index + 1)).join('/');
-    };
+		var _contextRootPath = $location.absUrl().substr(0, $location.absUrl().lastIndexOf('#'));
+		var pathElements = $location.path().split('/'), result = [], i;
+		var breadcrumbPath = function (index) {
+			return _contextRootPath + '#/' + (pathElements.slice(0, index + 1)).join('/');
+		};
 
-    pathElements.shift();
-    for (i=0; i < pathElements.length; i++) {
-      result.push({name: pathElements[i], path: breadcrumbPath(i)});
-    }
+		pathElements.shift();
+		for (i=0; i < pathElements.length; i++) {
+			result.push({name: pathElements[i], path: breadcrumbPath(i)});
+		}
 
-    breadcrumbs = result;
-  });
+		breadcrumbs = result;
+	});
 
-  breadcrumbsService.getAll = function() {
-    return breadcrumbs;
-  };
+	breadcrumbsService.getAll = function() {
+		return breadcrumbs;
+	};
 
-  breadcrumbsService.getFirst = function() {
-    return breadcrumbs[0] || {};
-  };
+	breadcrumbsService.getFirst = function() {
+		return breadcrumbs[0] || {};
+	};
 
-  return breadcrumbsService;
+	return breadcrumbsService;
 }]);

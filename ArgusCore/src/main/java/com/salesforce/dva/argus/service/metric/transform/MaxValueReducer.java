@@ -32,6 +32,8 @@
 package com.salesforce.dva.argus.service.metric.transform;
 
 import java.util.List;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Takes a list of doubles represents as Strings and returns the maximum value as a String. Values that do not convert to doubles are ignored.
@@ -43,23 +45,30 @@ public class MaxValueReducer implements ValueReducer {
     //~ Methods **************************************************************************************************************************************
 
     @Override
-    public String reduce(List<String> values) {
-        double max = Double.MIN_VALUE;
-        String maxAsString = null;
-
-        for (String value : values) {
+    public Double reduce(List<Double> values) {
+    	if(values == null || values.isEmpty()) {
+    		return null;
+    	}
+    	
+    	Stream<Double> stream = StreamSupport.stream(values.spliterator(), true);
+    	if(stream.allMatch(o -> o == null)) {
+    		stream.close();
+    		return null;
+    	}
+    	stream.close();
+    	
+        double max = Double.NEGATIVE_INFINITY;
+        for (Double value : values) {
             if (value == null) {
                 continue;
             }
 
-            double candidate = Double.parseDouble(value);
-
-            if (maxAsString == null || candidate > max) {
+            double candidate = value;
+            if (candidate > max) {
                 max = candidate;
-                maxAsString = value;
             }
         }
-        return maxAsString;
+        return max;
     }
 
     @Override

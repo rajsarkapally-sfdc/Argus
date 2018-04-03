@@ -34,8 +34,8 @@ package com.salesforce.dva.argus.service.metric.transform;
 import com.google.common.primitives.Doubles;
 import com.salesforce.dva.argus.entity.Metric;
 import com.salesforce.dva.argus.system.SystemAssert;
-import org.apache.commons.math.stat.descriptive.moment.Mean;
-import org.apache.commons.math.stat.descriptive.moment.StandardDeviation;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -44,9 +44,10 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
- * Filter transform is used by transform functions which cull the metric based on the result of evaluation againts their datapoints.
+ * Filter transform is used by transform functions which cull the metric based on the result of evaluation against their datapoints.
  *
  * <p>So far, this transform funcs use this filter ABOVE, BELOW, HIGHEST, LOWEST, SORT, DOWNSAMPLER</p>
  *
@@ -87,20 +88,21 @@ public class MetricFilterWithInteralReducerTransform implements Transform {
      * @throws  UnsupportedOperationException  If an unknown reducer type is specified.
      */
     public static String internalReducer(Metric metric, String reducerType) {
-        Map<Long, String> sortedDatapoints = new HashMap<Long, String>();
+        Map<Long, Double> sortedDatapoints = new TreeMap<>();
 
         sortedDatapoints.putAll(metric.getDatapoints());
 
         List<Double> operands = new ArrayList<Double>();
 
-        for (String str : sortedDatapoints.values()) {
+        for (Double value : sortedDatapoints.values()) {
             if (reducerType.equals("name")) {
                 break;
             }
-            if (str == null || str.equals("")) {
+            
+            if (value == null) {
                 operands.add(0.0);
             } else {
-                operands.add(Double.parseDouble(str));
+                operands.add(value);
             }
         }
 
@@ -135,14 +137,20 @@ public class MetricFilterWithInteralReducerTransform implements Transform {
      *
      * @return  The sorted metrics.
      */
-    public static Map<Metric, String> sortByValue(Map<Metric, String> map) {
+    public static Map<Metric, String> sortByValue(Map<Metric, String> map, final String reducerType) {
         List<Map.Entry<Metric, String>> list = new LinkedList<>(map.entrySet());
 
         Collections.sort(list, new Comparator<Map.Entry<Metric, String>>() {
 
                 @Override
                 public int compare(Map.Entry<Metric, String> o1, Map.Entry<Metric, String> o2) {
-                    return (o1.getValue()).compareTo(o2.getValue());
+                	if(reducerType.equals("name")) {
+                		return o1.getValue().compareTo(o2.getValue());
+                	}
+                	
+                	Double d1 = Double.parseDouble(o1.getValue());
+                	Double d2 = Double.parseDouble(o2.getValue());
+                    return (d1.compareTo(d2));
                 }
             });
 
@@ -193,7 +201,7 @@ public class MetricFilterWithInteralReducerTransform implements Transform {
 
             extendedSortedMap.put(metric, extendedEvaluation);
         }
-        return sortByValue(extendedSortedMap);
+        return sortByValue(extendedSortedMap, type);
     }
 
     @Override

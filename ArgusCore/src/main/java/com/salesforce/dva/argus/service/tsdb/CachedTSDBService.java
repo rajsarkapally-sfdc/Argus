@@ -176,10 +176,10 @@ public class CachedTSDBService extends DefaultService implements TSDBService {
 
                 for (Metric metric : entry.getValue()) {
                     Metric tempMetric = new Metric(metric);
-                    Map<Long, String> filteredDatapoints = new LinkedHashMap<>();
+                    Map<Long, Double> filteredDatapoints = new LinkedHashMap<>();
 
                     // Trim values based on user time
-                    for (Map.Entry<Long, String> datapoint : metric.getDatapoints().entrySet()) {
+                    for (Map.Entry<Long, Double> datapoint : metric.getDatapoints().entrySet()) {
                         if (datapoint.getKey() >= queryWithTimestamp.getOriginalStartTimestamp()) {
                             filteredDatapoints.put(datapoint.getKey(), datapoint.getValue());
                         }
@@ -224,9 +224,9 @@ public class CachedTSDBService extends DefaultService implements TSDBService {
             nextTimeStampDay = getNextDayBoundaryTimeStamp(startTimeStampDay);
 
             Metric tempMetric = new Metric(metric);
-            Map<Long, String> dataPoints = new LinkedHashMap<>();
+            Map<Long, Double> dataPoints = new LinkedHashMap<>();
 
-            for (Map.Entry<Long, String> dataPoint : metric.getDatapoints().entrySet()) {
+            for (Map.Entry<Long, Double> dataPoint : metric.getDatapoints().entrySet()) {
                 if (dataPoint.getKey() < nextTimeStampDay) {
                     dataPoints.put(dataPoint.getKey(), dataPoint.getValue());
                 } else {
@@ -453,10 +453,10 @@ public class CachedTSDBService extends DefaultService implements TSDBService {
                                 combinedMetric = tagNameAndMetricMap.get(metric.getTags().toString());
                             }
 
-                            Map<Long, String> filteredDatapoints = new LinkedHashMap<Long, String>();
+                            Map<Long, Double> filteredDatapoints = new LinkedHashMap<>();
 
                             // Trim values based on user time
-                            for (Map.Entry<Long, String> datapoint : metric.getDatapoints().entrySet()) {
+                            for (Map.Entry<Long, Double> datapoint : metric.getDatapoints().entrySet()) {
                                 if (datapoint.getKey() >= originalStartTimestamp) {
                                     filteredDatapoints.put(datapoint.getKey(), datapoint.getValue());
                                 }
@@ -511,7 +511,7 @@ public class CachedTSDBService extends DefaultService implements TSDBService {
                     _logger.info("Time spent in mapping tags in tsdb metrics to tags in cache: {}", afterTime - beforeTime);
                 } // end if
             } catch (RuntimeException | IOException ex) {
-                _logger.error("Error occured Reason:", ex.toString());
+                _logger.error("Error occurred Reason:", ex.toString());
                 uncached.add(new MetricQueryTimestamp(query, originalStartTimestamp, originalEndTimestamp, query.getStartTimestamp(),
                         query.getEndTimestamp()));
             } // end try-catch
@@ -697,7 +697,7 @@ public class CachedTSDBService extends DefaultService implements TSDBService {
             try {
                 _insertIntoCache();
             } catch (Exception ex) {
-                _logger.error("Error occured Reason:", ex.toString());
+                _logger.error("Error occurred Reason:", ex.toString());
             }
         }
 
@@ -721,7 +721,7 @@ public class CachedTSDBService extends DefaultService implements TSDBService {
                     }
                 }
             } catch (Exception e) {
-                _logger.error("Error occured Reason:", e.toString());
+                _logger.error("Error occurred Reason:", e.toString());
             }
         }
     }

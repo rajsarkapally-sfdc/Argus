@@ -1,55 +1,60 @@
+'use strict';
+/*global angular:false */
+
 angular.module('argus.directives.charts.statusIndicator', [])
-.directive('agStatusIndicator', ['DashboardService', 'growl', 'VIEWELEMENT', function(DashboardService, growl, VIEWELEMENT) {
-    var metricNameIndex = 1;
-    return {
-        restrict: 'E',
-        transclude: true,
-        scope: {
-            serviceName: '@name',
-            hi: '@hi',
-            lo: '@lo'
-        },
-        require: '^agDashboard',
-        controller: 'ViewElements',
-        template: '<div ng-transclude=""> </div>',
-        link: function(scope, element, attributes, dashboardCtrl) {
-            var metricExpression;
-            var indicatorHTML = 
-                '<div class="serviceItem">' +
-                    '<div class="serviceName">' + attributes.name + '</div>' +
-                    '<div id="'+ attributes.name + '-status" class="statusIndicator"></div>' +
-                '</div>';
-            
-            // render status indicator
-            element.html(indicatorHTML);
+.directive('agStatusIndicator', ['ChartDataProcessingService', 'ChartRenderingService', 'DashboardService',
+	function(ChartDataProcessingService, ChartRenderingService, DashboardService) {
+		return {
+			restrict: 'E',
+			transclude: true,
+			scope: {
+				serviceName: '@name',
+				hi: '@hi',
+				lo: '@lo'
+			},
+			require: '^agDashboard',
+			controller: 'ViewElements',
+			template: '<div ng-transclude=""> </div>',
+			link: function(scope, element, attributes, dashboardCtrl) {
+				var metricExpression;
+				var indicatorHTML =
+					'<div id="'+ attributes.name + '-container" class="serviceItem">' +
+						'<div class="serviceName"><p>' + attributes.name + '</p></div>' +
+						'<div id="'+ attributes.name + '-light" class="statusIndicator"></div>' +
+						'<span id="'+ attributes.name + '-numVal" class="hide inlineBlock bold" style="vertical-align:inherit;padding-left:.5em;"></span>' +
+					'</div>';
 
-            // listen to scope for event and controls info
-            scope.$on(dashboardCtrl.getSubmitBtnEventName(), function(event, controls) {
-                for (var key in scope.metrics) {
-                    if (scope.metrics.hasOwnProperty(key)) {
-                        // get metricExpression from scope
-                        metricExpression = scope.metrics[key].expression;
+				// render status indicator
+				element.html(indicatorHTML);
 
-                        // process mertricExpression from controls if present
-                        if ( controls ) {
-                            metricExpression = DashboardService.augmentExpressionWithControlsData(event, metricExpression, controls);
-                        }
-                    }
-                }
+				// listen to scope for event and controls info
+				scope.$on(dashboardCtrl.getSubmitBtnEventName(), function(event, controls) {
+					for (var key in scope.metrics) {
+						if (scope.metrics.hasOwnProperty(key)) {
+							// get metricExpression from scope
+							metricExpression = scope.metrics[key].expression;
 
-                // get datapoints from metric expression
-                if ( metricExpression) {
-                    DashboardService.getMetricData(metricExpression)
-                        .then(function( result ) {
-                            var datapoints = result.data[0].datapoints;
-                            var lastStatusVal = Object.keys(datapoints).sort().reverse()[0];
-                            lastStatusVal = datapoints[lastStatusVal];
+							// process mertricExpression from controls if present
+							if ( controls ) {
+								metricExpression = ChartDataProcessingService.augmentExpressionWithControlsData(metricExpression, controls);
+							}
+						}
+					}
 
-                            // update status indicator
-                            DashboardService.updateIndicatorStatus(attributes, lastStatusVal);
-                        });
-                }
-            });
-        }
-    }
-}]);
+					// get datapoints from metric expression
+					if (metricExpression) {
+						DashboardService.getMetricData(metricExpression)
+							.then(function( result ) {
+								if (result !== undefined) {
+									// get the last data point from the result data
+									var lastStatusVal = (result.data[0]) ? ChartDataProcessingService.getLastDataPoint(result.data[0].datapoints) : null;
+
+									// update status indicator
+									ChartRenderingService.updateIndicatorStatus(attributes, lastStatusVal);
+								}
+							});
+					}
+				});
+			}
+		};
+	}]);

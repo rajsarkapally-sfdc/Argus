@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-	 
+
 package com.salesforce.dva.argus.ws.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -61,6 +61,7 @@ public class AlertDto extends EntityDTO {
     private List<BigInteger> notificationsIds = new ArrayList<>(0);
     private List<BigInteger> triggersIds = new ArrayList<>(0);
     private String ownerName;
+    private boolean shared;
 
     //~ Methods **************************************************************************************************************************************
 
@@ -214,6 +215,15 @@ public class AlertDto extends EntityDTO {
     }
 
     /**
+     * Sets the list of notification Ids.
+     *
+     * @param  notificationIds list of notifications.
+     */
+    public void setNotificationsIds(List<BigInteger> notificationIds) {
+        this.notificationsIds = notificationIds;
+    }
+
+    /**
      * Adds the notification.
      *
      * @param  notification  The notification.
@@ -229,6 +239,15 @@ public class AlertDto extends EntityDTO {
      */
     public List<BigInteger> getTriggersIds() {
         return triggersIds;
+    }
+
+    /**
+     * Sets the list of notification Ids.
+     *
+     * @param  triggersIds list of notifications.
+     */
+    public void setTriggersIds(List<BigInteger> triggersIds) {
+        this.triggersIds = triggersIds;
     }
 
     /**
@@ -257,8 +276,26 @@ public class AlertDto extends EntityDTO {
     public void setOwnerName(String ownerName) {
         this.ownerName = ownerName;
     }
+    
+    /**
+     * Indicates if the alert is shared.
+     *
+     * @return  True if the alert is shared.
+     */
+    public boolean isShared() {
+		return shared;
+	}
 
-    @Override
+    /**
+     * Indicates whether or not the alert is shared.
+     *
+     * @param  shared  True if the alert is shared.
+     **/
+	public void setShared(boolean shared) {
+		this.shared = shared;
+	}
+
+	@Override
     public Object createExample() {
         AlertDto result = new AlertDto();
 
@@ -273,6 +310,7 @@ public class AlertDto extends EntityDTO {
         result.setModifiedDate(new Date());
         result.setName("example-alert");
         result.setOwnerName("admin");
+        result.setShared(false);
         return result;
     }
 }

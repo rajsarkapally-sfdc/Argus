@@ -31,11 +31,12 @@
 package com.salesforce.dva.argus.sdk;
 
 import com.salesforce.dva.argus.sdk.entity.History;
+import com.salesforce.dva.argus.sdk.exceptions.TokenExpiredException;
+
 import org.junit.Test;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -43,7 +44,7 @@ import static org.junit.Assert.assertEquals;
 public class HistoryServiceTest extends AbstractTest {
 
     @Test
-    public void testGetHistoryForEntity() throws IOException {
+    public void testGetHistoryForEntity() throws IOException, TokenExpiredException {
         try(ArgusService argusService = new ArgusService(getMockedClient("/HistoryServiceTest.json"))) {
             HistoryService historyService = argusService.getHistoryService();
             List<History> result = historyService.getHistoryForEntity(BigInteger.ONE, 1);
@@ -53,28 +54,15 @@ public class HistoryServiceTest extends AbstractTest {
         }
     }
 
-    @Test
-    public void testGetHistory() throws IOException {
-        try(ArgusService argusService = new ArgusService(getMockedClient("/HistoryServiceTest.json"))) {
-            HistoryService historyService = argusService.getHistoryService();
-            History result = historyService.getHistory(BigInteger.ONE);
-            History expected = _constructPersistedHistory();
-
-            assertEquals(expected, result);
-        }
-    }
-
     private History _constructPersistedHistory() {
         History result = new History();
 
-        result.setCreatedDate(new Date(1472282830936L));
+        result.setCreationTime(1472282830936L);
         result.setEntityId(BigInteger.ONE);
         result.setExecutionTime(100);
         result.setHostName("TestHost");
-        result.setId(BigInteger.ONE);
         result.setJobStatus("TestStatus");
         result.setMessage("TestMessage");
-        result.setWaitTime(100);
         return result;
     }
 }

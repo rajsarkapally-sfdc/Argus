@@ -126,6 +126,8 @@ public class TransformFactory {
                 return new FillCalculateTransform();
             case ALIAS:
                 return new AliasTransform();
+            case ALIASBYTAG:
+                return new AliasByTagTransform();
             case INCLUDE:
                 return new IncludeTransform();
             case EXCLUDE:
@@ -172,6 +174,8 @@ public class TransformFactory {
                 return new MetricZipperTransform(new DivideValueZipper());
             case NORMALIZE_V:
                 return new MetricZipperTransform(new DivideValueZipper());
+            case ANOMALY_STL:
+                return new AnomalySTLTransform();
             case GROUPBY:
             	return new GroupByTransform(this);
             case ANOMALY_DENSITY:
@@ -182,6 +186,8 @@ public class TransformFactory {
                 return new AnomalyDetectionKMeansTransform();
             case ANOMALY_RPCA:
                 return new AnomalyDetectionRPCATransform();
+            case INTERPOLATE:
+                return new InterpolateTransform();
             default:
                 throw new UnsupportedOperationException(functionName);
         } // end switch
@@ -220,7 +226,8 @@ public class TransformFactory {
         ABSOLUTE("ABSOLUTE", " Converts the data point values to their corresponding absolute value."),
         MOVING("MOVING", "Evaluates input metrics using a moving window."),
         PROPAGATE("PROPAGATE", "Forward fills gaps with the last known value at the start (earliest occurring time) of the gap.."),
-        ALIAS("ALIAS", "Transforms the name of one or more metrics."),
+        ALIAS("ALIAS", "Transforms the name of one or more metrics/scopes."),
+        ALIASBYTAG("ALIASBYTAG", "Sets the display name for the metric. It uses the provided tag key to get the value for that tag and uses that to set the display name."),
         NORMALIZE("NORMALIZE", "Normalizes the data point values of time series"),
         RANGE("RANGE", "Calculate the union of unique values in the input."),
         UNION("UNION", "Performs the union of all data points for the given time series."),
@@ -248,11 +255,13 @@ public class TransformFactory {
         CONSECUTIVE("CONSECUTIVE","Filter out all values that are non-consecutive"),
         HW_FORECAST("HW_FORECAST", "Performns HoltWinters Forecast."),
         HW_DEVIATION("HW_DEVIATION", "Performns HoltWinters Deviation."),
+        ANOMALY_STL("ANOMALY_STL", "Performs a seasonal trend decomposition and returns the probability that each point is an anomaly based on the residual component."),
         GROUPBY("GROUPBY", "Creates groups of metrics based on some matching criteria and then performs the given aggregation."),
         ANOMALY_DENSITY("ANOMALY_DENSITY", "Calculates an anomaly score (0-100) for each value of the metric based on the probability density of each value with a Gaussian distribution."),
         ANOMALY_ZSCORE("ANOMALY_ZSCORE", "Calculates an anomaly score (0-100) for each value of the metric based on the z-score of each value with a Gaussian distribution."),
         ANOMALY_KMEANS("ANOMALY_KMEANS", "Calculates an anomaly score (0-100) for each value of the metric based on a K-means clustering of the metric data."),
-        ANOMALY_RPCA("ANOMALY_RPCA", "Calculates an anomaly score (0-100) for each value of the metric based on the RPCA matrix decomposition algorithm.");
+        ANOMALY_RPCA("ANOMALY_RPCA", "Calculates an anomaly score (0-100) for each value of the metric based on the RPCA matrix decomposition algorithm."),
+        INTERPOLATE("INTERPOLATE", "Performs interpolation of multiple time series, that can then be used for aggregation");
 
         private final String _name;
         private final String _description;

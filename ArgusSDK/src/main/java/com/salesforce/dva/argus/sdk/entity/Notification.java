@@ -49,12 +49,16 @@ public class Notification extends Entity {
 
     private String name;
     private String notifierName;
-    private List<String> subscriptions;
-    private List<String> metricsToAnnotate;
+    private List<String> subscriptions = new ArrayList<>();
+    private List<String> metricsToAnnotate = new ArrayList<>();
     private long cooldownPeriod;
     private long cooldownExpiration;
     private List<BigInteger> triggersIds = new ArrayList<>();
     private BigInteger alertId;
+    private String customText;
+    private int severityLevel = 5;
+    private boolean isSRActionable;
+    
 
     //~ Methods **************************************************************************************************************************************
 
@@ -202,7 +206,61 @@ public class Notification extends Entity {
         this.alertId = alertId;
     }
 
-    @Override
+    
+    /**
+     * Indicates whether the notification is monitored by SR
+     *
+     * @return  True if notification is monitored by SR
+     */
+    public boolean getSRActionable() {
+        return isSRActionable;
+    }
+
+    /**
+     * Specifies whether the notification should be monitored by SR (actionable by SR)
+     *
+     * @param  isSRActionable  True if  SR should monitor the notification
+     */
+    public void setSRActionable(boolean isSRActionable) {
+        this.isSRActionable = isSRActionable;
+    }
+    
+    /**
+     * Gets the severity level of notification
+     *
+     * @return  The severity level
+     */
+    public int getSeverityLevel() {
+        return severityLevel;
+    }
+
+    /**
+     * Sets the severity level of notification
+     *
+     * @param  severityLevel  The severity level
+     */
+    public void setSeverityLevel(int severityLevel) {
+        if (severityLevel < 1 || severityLevel > 5) {
+            throw new IllegalArgumentException("The severty level should be between 1-5");
+        }
+        this.severityLevel = severityLevel;
+    }    
+    
+    /**
+	 * @return the customText
+	 */
+	public String getCustomText() {
+		return customText;
+	}
+
+	/**
+	 * @param customText the customText to set
+	 */
+	public void setCustomText(String customText) {
+		this.customText = customText;
+	}
+
+	@Override
     public int hashCode() {
         int hash = 7;
 
@@ -215,6 +273,9 @@ public class Notification extends Entity {
         hash = 59 * hash + (int) (this.cooldownExpiration ^ (this.cooldownExpiration >>> 32));
         hash = 59 * hash + Objects.hashCode(this.triggersIds);
         hash = 59 * hash + Objects.hashCode(this.alertId);
+        hash = 59 * hash + Objects.hashCode(this.customText);
+        hash = 59 * hash + Objects.hashCode(this.severityLevel);
+        hash = 59 * hash + Objects.hashCode(this.isSRActionable);
         return hash;
     }
 
@@ -259,6 +320,15 @@ public class Notification extends Entity {
         if (!Objects.equals(this.alertId, other.alertId)) {
             return false;
         }
+        if (!Objects.equals(this.isSRActionable, other.isSRActionable)) {
+            return false;
+        }
+        if (!Objects.equals(this.severityLevel, other.severityLevel)) {
+            return false;
+        }        
+        if (!Objects.equals(this.customText, other.customText)) {
+            return false;
+        } 
         return true;
     }
 }

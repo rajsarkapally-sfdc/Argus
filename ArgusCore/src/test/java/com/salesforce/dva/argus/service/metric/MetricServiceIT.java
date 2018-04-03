@@ -52,19 +52,19 @@ import static org.junit.Assert.*;
 public class MetricServiceIT extends AbstractTest {
 
     @Test
-    public void testGetMetricsWithOffset() throws InterruptedException {
+    public void testGetMetricsRelativeTo() throws InterruptedException {
         MetricService metricService = system.getServiceFactory().getMetricService();
         TSDBService tsdbService = system.getServiceFactory().getTSDBService();
 
         try {
             Long currentTime = System.currentTimeMillis();
-            Map<Long, String> datapoints = new TreeMap<Long, String>();
+            Map<Long, Double> datapoints = new TreeMap<>();
 
-            datapoints.put(currentTime - 15000000, "1");
-            datapoints.put(currentTime - 14000000, "2");
-            datapoints.put(currentTime - 13000000, "3");
-            datapoints.put(currentTime - 12000000, "4");
-            datapoints.put(currentTime - 11000000, "5");
+            datapoints.put(currentTime - 15000000, 1.0);
+            datapoints.put(currentTime - 14000000, 2.0);
+            datapoints.put(currentTime - 13000000, 3.0);
+            datapoints.put(currentTime - 12000000, 4.0);
+            datapoints.put(currentTime - 11000000, 5.0);
 
             Metric m = new Metric("scope-test-offset", "metric-test-offset");
 
@@ -72,12 +72,11 @@ public class MetricServiceIT extends AbstractTest {
             tsdbService.putMetrics(Arrays.asList(new Metric[] { m }));
             Thread.sleep(5 * 1000);
 
-            List<Metric> metrics = metricService.getMetrics((currentTime - 10000000) +
-                MessageFormat.format(":{0}:{1}:avg", m.getScope(), m.getMetric()), 0);
-
+            List<Metric> metrics = metricService.getMetrics("-10000s" + MessageFormat.format(":{0}:{1}:avg", m.getScope(), m.getMetric()), currentTime);
             assertTrue(metrics.size() == 0 || metrics.get(0).getDatapoints().size() == 0);
-            metrics = metricService.getMetrics((currentTime - 10000000) + MessageFormat.format(":{0}:{1}:avg", m.getScope(), m.getMetric()),
-                -10000000);
+            
+            metrics = metricService.getMetrics("-10000s" + MessageFormat.format(":{0}:{1}:avg", m.getScope(), m.getMetric()),
+                (currentTime - 10000000));
             assertTrue(_datapointsBetween(metrics.get(0).getDatapoints(), currentTime - 20000000, System.currentTimeMillis() - 10000000));
         } finally {
             metricService.dispose();
@@ -107,7 +106,7 @@ public class MetricServiceIT extends AbstractTest {
         assertEquals(2, queries.size());
     }
 
-    private boolean _datapointsBetween(Map<Long, String> datapoints, long low, long high) {
+    private boolean _datapointsBetween(Map<Long, Double> datapoints, long low, long high) {
         for (Long timestamp : datapoints.keySet()) {
             if (timestamp < low || timestamp > high) {
                 return false;

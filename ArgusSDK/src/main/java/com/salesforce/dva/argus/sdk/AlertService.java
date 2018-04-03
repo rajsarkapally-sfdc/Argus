@@ -36,6 +36,8 @@ import com.salesforce.dva.argus.sdk.ArgusService.EndpointService;
 import com.salesforce.dva.argus.sdk.entity.Alert;
 import com.salesforce.dva.argus.sdk.entity.Notification;
 import com.salesforce.dva.argus.sdk.entity.Trigger;
+import com.salesforce.dva.argus.sdk.exceptions.TokenExpiredException;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.List;
@@ -70,9 +72,30 @@ public class AlertService extends EndpointService {
      * @return  The list of alerts. Will never be null, but may be empty.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public List<Alert> getAlerts() throws IOException {
-        String requestUrl = RESOURCE;
+    public List<Alert> getAlerts() throws IOException, TokenExpiredException {
+       return getAlerts(true);
+    }
+    
+    /**
+     * Returns all alerts created by owner.
+     *
+     * @return  The list of alerts. Will never be null, but may be empty.
+     *
+     * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
+     */
+    public List<Alert> getAlerts(boolean includeSharedAlerts) throws IOException, TokenExpiredException {
+    	String requestUrl = RESOURCE+"?shared=" + includeSharedAlerts;
+        ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
+
+        assertValidResponse(response, requestUrl);
+        return fromJson(response.getResult(), new TypeReference<List<Alert>>() { });
+    }
+    
+    public List<Alert> getAlertsMeta(boolean includeSharedAlerts) throws IOException, TokenExpiredException {
+    	String requestUrl = RESOURCE + "/meta?shared=" + includeSharedAlerts;
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
         assertValidResponse(response, requestUrl);
@@ -87,8 +110,9 @@ public class AlertService extends EndpointService {
      * @return  The alert for the given ID. May be null.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Alert getAlert(BigInteger alertId) throws IOException {
+    public Alert getAlert(BigInteger alertId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
@@ -104,8 +128,9 @@ public class AlertService extends EndpointService {
      * @return  The list of notifications for the alert. Will never be null, but may be empty.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public List<Notification> getNotifications(BigInteger alertId) throws IOException {
+    public List<Notification> getNotifications(BigInteger alertId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications";
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
@@ -121,8 +146,9 @@ public class AlertService extends EndpointService {
      * @return  The triggers for the alert. Will never be null, but may be empty.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public List<Trigger> getTriggers(BigInteger alertId) throws IOException {
+    public List<Trigger> getTriggers(BigInteger alertId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/triggers";
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
@@ -139,8 +165,9 @@ public class AlertService extends EndpointService {
      * @return  The notification.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Notification getNotification(BigInteger alertId, BigInteger notificationId) throws IOException {
+    public Notification getNotification(BigInteger alertId, BigInteger notificationId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications/" + notificationId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
@@ -157,8 +184,9 @@ public class AlertService extends EndpointService {
      * @return  The triggers linked with the notification for the specified alert.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public List<Trigger> getTriggersForNotification(BigInteger alertId, BigInteger notificationId) throws IOException {
+    public List<Trigger> getTriggersForNotification(BigInteger alertId, BigInteger notificationId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications/" + notificationId.toString() + "/triggers";
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
@@ -175,8 +203,9 @@ public class AlertService extends EndpointService {
      * @return  The trigger.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Trigger getTrigger(BigInteger alertId, BigInteger triggerId) throws IOException {
+    public Trigger getTrigger(BigInteger alertId, BigInteger triggerId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/triggers/" + triggerId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
@@ -194,8 +223,9 @@ public class AlertService extends EndpointService {
      * @return  The trigger if it's associated with the notification, or <tt>null</tt> otherwise.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Trigger getTriggerIfAssigned(BigInteger alertId, BigInteger notificationId, BigInteger triggerId) throws IOException {
+    public Trigger getTriggerIfAssigned(BigInteger alertId, BigInteger notificationId, BigInteger triggerId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications/" + notificationId.toString() + "/triggers/" + triggerId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
@@ -211,8 +241,9 @@ public class AlertService extends EndpointService {
      * @return  The new alert having the ID field populated.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Alert createAlert(Alert alert) throws IOException {
+    public Alert createAlert(Alert alert) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE;
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.POST, requestUrl, alert);
 
@@ -229,8 +260,9 @@ public class AlertService extends EndpointService {
      * @return  The updated alert.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Alert updateAlert(BigInteger alertId, Alert alert) throws IOException {
+    public Alert updateAlert(BigInteger alertId, Alert alert) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.PUT, requestUrl, alert);
 
@@ -248,8 +280,9 @@ public class AlertService extends EndpointService {
      * @return  The updated notification.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Notification updateNotification(BigInteger alertId, BigInteger notificationId, Notification notification) throws IOException {
+    public Notification updateNotification(BigInteger alertId, BigInteger notificationId, Notification notification) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications/" + notificationId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.PUT, requestUrl, notification);
 
@@ -267,8 +300,9 @@ public class AlertService extends EndpointService {
      * @return  The updated trigger.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Trigger updateTrigger(BigInteger alertId, BigInteger triggerId, Trigger trigger) throws IOException {
+    public Trigger updateTrigger(BigInteger alertId, BigInteger triggerId, Trigger trigger) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/triggers/" + triggerId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.PUT, requestUrl, trigger);
 
@@ -285,8 +319,9 @@ public class AlertService extends EndpointService {
      * @return  The notification having a populated ID field.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public List<Notification> createNotification(BigInteger alertId, Notification notification) throws IOException {
+    public List<Notification> createNotification(BigInteger alertId, Notification notification) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications";
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.POST, requestUrl, notification);
 
@@ -303,8 +338,9 @@ public class AlertService extends EndpointService {
      * @return  The trigger having a populated ID field.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public List<Trigger> createTrigger(BigInteger alertId, Trigger trigger) throws IOException {
+    public List<Trigger> createTrigger(BigInteger alertId, Trigger trigger) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/triggers";
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.POST, requestUrl, trigger);
 
@@ -322,8 +358,9 @@ public class AlertService extends EndpointService {
      * @return  The updated trigger.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Trigger linkTrigger(BigInteger alertId, BigInteger notificationId, BigInteger triggerId) throws IOException {
+    public Trigger linkTrigger(BigInteger alertId, BigInteger notificationId, BigInteger triggerId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications/" + notificationId.toString() + "/triggers/" + triggerId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.POST, requestUrl, null);
 
@@ -337,8 +374,9 @@ public class AlertService extends EndpointService {
      * @param   alertId  The ID of the alert to delete.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public void deleteAlert(BigInteger alertId) throws IOException {
+    public void deleteAlert(BigInteger alertId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.DELETE, requestUrl, null);
 
@@ -351,8 +389,9 @@ public class AlertService extends EndpointService {
      * @param   alertId  The ID of the alert for which notifications will be deleted.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public void deleteNotifications(BigInteger alertId) throws IOException {
+    public void deleteNotifications(BigInteger alertId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications";
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.DELETE, requestUrl, null);
 
@@ -366,8 +405,9 @@ public class AlertService extends EndpointService {
      * @param   notificationId  The ID of the notification to delete.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public void deleteNotification(BigInteger alertId, BigInteger notificationId) throws IOException {
+    public void deleteNotification(BigInteger alertId, BigInteger notificationId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications/" + notificationId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.DELETE, requestUrl, null);
 
@@ -380,8 +420,9 @@ public class AlertService extends EndpointService {
      * @param   alertId  The ID of the alert from which triggers will be deleted.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public void deleteTriggers(BigInteger alertId) throws IOException {
+    public void deleteTriggers(BigInteger alertId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/triggers";
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.DELETE, requestUrl, null);
 
@@ -395,8 +436,9 @@ public class AlertService extends EndpointService {
      * @param   triggerId  The ID of the trigger to delete.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public void deleteTrigger(BigInteger alertId, BigInteger triggerId) throws IOException {
+    public void deleteTrigger(BigInteger alertId, BigInteger triggerId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/triggers/" + triggerId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.DELETE, requestUrl, null);
 
@@ -410,8 +452,9 @@ public class AlertService extends EndpointService {
      * @param   notificationId  The notification for which all triggers will be unlinked.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public void unlinkTriggers(BigInteger alertId, BigInteger notificationId) throws IOException {
+    public void unlinkTriggers(BigInteger alertId, BigInteger notificationId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications/" + notificationId.toString() + "/triggers";
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.DELETE, requestUrl, null);
 
@@ -426,8 +469,9 @@ public class AlertService extends EndpointService {
      * @param   triggerId       The ID of the trigger.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public void unlinkTrigger(BigInteger alertId, BigInteger notificationId, BigInteger triggerId) throws IOException {
+    public void unlinkTrigger(BigInteger alertId, BigInteger notificationId, BigInteger triggerId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + alertId.toString() + "/notifications/" + notificationId.toString() + "/triggers/" + triggerId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.DELETE, requestUrl, null);
 

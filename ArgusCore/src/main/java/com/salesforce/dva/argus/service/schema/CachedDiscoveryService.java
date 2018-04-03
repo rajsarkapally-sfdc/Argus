@@ -1,5 +1,6 @@
 package com.salesforce.dva.argus.service.schema;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.MessageFormat;
@@ -21,6 +22,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.salesforce.dva.argus.entity.MetricSchemaRecord;
+import com.salesforce.dva.argus.entity.MetricSchemaRecordQuery;
+import com.salesforce.dva.argus.entity.SchemaQuery;
 import com.salesforce.dva.argus.service.CacheService;
 import com.salesforce.dva.argus.service.DefaultService;
 import com.salesforce.dva.argus.service.DiscoveryService;
@@ -48,7 +51,7 @@ public class CachedDiscoveryService extends DefaultService implements DiscoveryS
     //~ Constructors *********************************************************************************************************************************
 
     @Inject
-    private CachedDiscoveryService(CacheService cacheService, @NamedBinding DiscoveryService discoveryService, SystemConfiguration config) {
+    public CachedDiscoveryService(CacheService cacheService, @NamedBinding DiscoveryService discoveryService, SystemConfiguration config) {
     	super(config);
     	SystemAssert.requireArgument(cacheService != null, "Cache Service cannot be null.");
         SystemAssert.requireArgument(discoveryService != null, "Discovery Service cannot be null.");
@@ -81,17 +84,13 @@ public class CachedDiscoveryService extends DefaultService implements DiscoveryS
 	}
 
 	@Override
-	public List<MetricSchemaRecord> filterRecords(String namespaceRegex,
-			String scopeRegex, String metricRegex, String tagkRegex,
-			String tagvRegex, int limit, int page) {
-		return _discoveryService.filterRecords(namespaceRegex, scopeRegex, metricRegex, tagkRegex, tagvRegex, limit, page);
+	public List<MetricSchemaRecord> filterRecords(SchemaQuery query) {
+		return _discoveryService.filterRecords(query);
 	}
 
 	@Override
-	public List<String> getUniqueRecords(String namespaceRegex,
-			String scopeRegex, String metricRegex, String tagkRegex,
-			String tagvRegex, RecordType type, int limit, int page) {
-		return _discoveryService.getUniqueRecords(namespaceRegex, scopeRegex, metricRegex, tagkRegex, tagvRegex, type, limit, page);
+	public List<MetricSchemaRecord> getUniqueRecords(MetricSchemaRecordQuery query, RecordType type) {
+		return _discoveryService.getUniqueRecords(query, type);
 	}
 
 	@Override
@@ -102,7 +101,7 @@ public class CachedDiscoveryService extends DefaultService implements DiscoveryS
 		long start = System.nanoTime();
 		List<MetricQuery> queries = new ArrayList<>();
 		
-		if(isWildcardQuery(query)) {
+		if(DiscoveryService.isWildcardQuery(query)) {
 			String value = _cacheService.get(_getKey(query));
 			if(value == null) { // Cache Miss
 				_logger.info(MessageFormat.format("CACHE MISS for Wildcard Query: '{'{0}'}'. Will read from persistent storage.", query));
@@ -113,13 +112,14 @@ public class CachedDiscoveryService extends DefaultService implements DiscoveryS
 				try {
 					JavaType type = MAPPER.getTypeFactory().constructCollectionType(List.class, MetricQuery.class);
 					List<MetricQuery> matchedQueries = MAPPER.readValue(value, type);
+					_checkIfExceedsLimits(query, matchedQueries);
 					for(int i=0; i<matchedQueries.size(); i++) {
 						MetricQuery q = new MetricQuery(query);
 						_replaceWildcardFieldsFromCachedQuery(matchedQueries.get(i), q);
 						queries.add(q);
 					}
-				} catch (Exception e) {
-					_logger.warn("Failed to deserialize cached data into metric queries. Will read from persistent storage.", e);
+				} catch (IOException e) {
+					_logger.warn("IOException when trying to deserialize cached data into metric queries. Will read from persistent storage.", e);
 					queries = _discoveryService.getMatchingQueries(query);
 					_executorService.submit(new CacheInsertWorker(query, queries));
 				}
@@ -133,6 +133,19 @@ public class CachedDiscoveryService extends DefaultService implements DiscoveryS
 		return queries;
 	}
 	
+	private void _checkIfExceedsLimits(MetricQuery query, List<MetricQuery> matchedQueries) {
+		
+		int noOfTimeseriesAllowed = DiscoveryService.maxTimeseriesAllowed(query);
+		int numOfExpandedTimeseries = 1;
+		for(MetricQuery mq : matchedQueries) {
+			numOfExpandedTimeseries += DiscoveryService.numApproxTimeseriesForQuery(mq);
+		}
+		
+		if(numOfExpandedTimeseries > noOfTimeseriesAllowed) {
+			throw new WildcardExpansionLimitExceededException(EXCEPTION_MESSAGE);
+		}
+	}
+
 	private void _replaceWildcardFieldsFromCachedQuery(MetricQuery cachedQuery, MetricQuery result) {
 		result.setNamespace(cachedQuery.getNamespace());
 		result.setTags(cachedQuery.getTags());
@@ -149,11 +162,6 @@ public class CachedDiscoveryService extends DefaultService implements DiscoveryS
 		} catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
 			throw new SystemException("Failed to set metric name and scope using reflection.", e);
 		}
-	}
-
-	@Override
-	public boolean isWildcardQuery(MetricQuery query) {
-		return _discoveryService.isWildcardQuery(query);
 	}
 
 	private class CacheInsertWorker implements Runnable {

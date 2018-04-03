@@ -31,7 +31,7 @@
 	 
 package com.salesforce.dva.argus.entity;
 
-import com.salesforce.dva.argus.system.SystemAssert;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.text.MessageFormat;
 
 /**
@@ -48,7 +48,9 @@ public class MetricSchemaRecord {
     private String namespace;
     private String scope;
     private String metric;
+    @JsonProperty("tagk")
     private String tagKey;
+    @JsonProperty("tagv")
     private String tagValue;
 
     //~ Constructors *********************************************************************************************************************************
@@ -106,7 +108,7 @@ public class MetricSchemaRecord {
     /**
      * Indicates the scope associated with the result.
      *
-     * @return  The scope.  Cannot be null or empty.
+     * @return  The scope.  Can be null or empty.
      */
     public String getScope() {
         return scope;
@@ -115,17 +117,16 @@ public class MetricSchemaRecord {
     /**
      * Specifies the scope associated with the result.
      *
-     * @param  scope  The scope.  Cannot be null or empty.
+     * @param  scope  The scope.  Can be null or empty.
      */
-    public void setScope(String scope) {
-        SystemAssert.requireArgument(scope != null && !scope.isEmpty(), "Scope cannot be null or empty");
+    public void setScope(String scope) { 
         this.scope = scope;
     }
 
     /**
      * Indicates the metric name associated with the result.
      *
-     * @return  The metric name.  Cannot be null or empty.
+     * @return  The metric name.  Can be null or empty.
      */
     public String getMetric() {
         return metric;
@@ -134,10 +135,9 @@ public class MetricSchemaRecord {
     /**
      * Specifies the metric name associated with the result.
      *
-     * @param  metric  The metric name.  Cannot be null or empty.
+     * @param  metric  The metric name.  Can be null or empty.
      */
-    public void setMetric(String metric) {
-        SystemAssert.requireArgument(metric != null && !metric.isEmpty(), "Metric cannot be null or empty");
+    public void setMetric(String metric) { 
         this.metric = metric;
     }
 
@@ -246,6 +246,52 @@ public class MetricSchemaRecord {
     public String toString() {
         return MessageFormat.format("MetricSchemaRecord = (Namespace = {0}, Scope = {1}, Metric = {2}, TagKey = {3}, TagValue = {4})", namespace,
             scope, metric, tagKey, tagValue);
+    }
+    /*
+     * Returns the Metric Schema Record constructed from a given string
+     * @param s String representing the metric expression in the format scope:metric{tagKey=tagValue}:namespace 
+     */
+    public static MetricSchemaRecord constructSchemaRecord(String s){
+    	
+    	if(s==null || s.length()==0)
+    		return null;
+    	
+    	String[] querySplit=s.split(":"); 
+
+		String scope=querySplit[0], namespace=querySplit.length==3?querySplit[2]:null,metric, tagKey, tagValue;
+
+		if(querySplit[1].contains("{")){
+			metric=querySplit[1].substring(0, querySplit[1].indexOf('{'));
+			String tagKeyTagValue=querySplit[1].substring(querySplit[1].indexOf('{'), querySplit[1].length()-1);
+			String[] tagKeyValueSplit=tagKeyTagValue.split("=");
+			tagKey=tagKeyValueSplit[0].substring(1);
+			tagValue=tagKeyValueSplit[1];
+
+		}else{
+			metric=querySplit[1];
+			tagKey=null;
+			tagValue=null;
+		}
+    	return new MetricSchemaRecord(namespace, scope, metric, tagKey, tagValue);
+    	
+    	
+    }
+    
+    public static String print(MetricSchemaRecord msr) {
+    	
+    	StringBuilder sb = new StringBuilder(msr.getScope());
+    	sb.append(":");
+    	sb.append(msr.getMetric());
+    	
+    	if(msr.getTagKey() != null) {
+    		sb.append("{").append(msr.getTagKey()).append("=").append(msr.getTagValue()).append("}");
+    	}
+    	
+    	if(msr.getNamespace() != null) {
+    		sb.append(":").append(msr.getNamespace());
+    	}
+    	
+    	return sb.toString();
     }
 }
 /* Copyright (c) 2016, Salesforce.com, Inc.  All rights reserved. */

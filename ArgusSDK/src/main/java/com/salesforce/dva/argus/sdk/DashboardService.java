@@ -34,6 +34,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.salesforce.dva.argus.sdk.ArgusHttpClient.ArgusResponse;
 import com.salesforce.dva.argus.sdk.ArgusService.EndpointService;
 import com.salesforce.dva.argus.sdk.entity.Dashboard;
+import com.salesforce.dva.argus.sdk.exceptions.TokenExpiredException;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.List;
@@ -70,8 +72,9 @@ public class DashboardService extends EndpointService {
      * @return  The persisted dashboard.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Dashboard createDashboard(Dashboard dashboard) throws IOException {
+    public Dashboard createDashboard(Dashboard dashboard) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE;
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.POST, requestUrl, dashboard);
 
@@ -88,8 +91,9 @@ public class DashboardService extends EndpointService {
      * @return  The persisted dashboard.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Dashboard updateDashboard(BigInteger dashboardId, Dashboard dashboard) throws IOException {
+    public Dashboard updateDashboard(BigInteger dashboardId, Dashboard dashboard) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + dashboardId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.PUT, requestUrl, dashboard);
 
@@ -103,8 +107,9 @@ public class DashboardService extends EndpointService {
      * @param   dashboardId  The ID of the dashboard to delete.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public void deleteDashboard(BigInteger dashboardId) throws IOException {
+    public void deleteDashboard(BigInteger dashboardId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + dashboardId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.DELETE, requestUrl, null);
 
@@ -119,8 +124,9 @@ public class DashboardService extends EndpointService {
      * @return  The dashboard.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public Dashboard getDashboard(BigInteger dashboardId) throws IOException {
+    public Dashboard getDashboard(BigInteger dashboardId) throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE + "/" + dashboardId.toString();
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
@@ -134,9 +140,28 @@ public class DashboardService extends EndpointService {
      * @return  The list of dashboards owned by the user.
      *
      * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
      */
-    public List<Dashboard> getDashboards() throws IOException {
+    public List<Dashboard> getDashboards() throws IOException, TokenExpiredException {
         String requestUrl = RESOURCE;
+        ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
+
+        assertValidResponse(response, requestUrl);
+        return fromJson(response.getResult(), new TypeReference<List<Dashboard>>() { });
+    }
+    
+    /**
+     * Returns the list of dashboards owned by the user. Each Dashboard only contains metadata (id, name, description etc.) about the dashboard.
+     *
+     * @param	shared	True or false depending on whether shared dashboards must be retrieved along with dashboards owned by the user.
+     *
+     * @return  The list of dashboards owned by the user.
+     *
+     * @throws  IOException  If the server cannot be reached.
+     * @throws  TokenExpiredException   If the token sent along with the request has expired
+     */
+    public List<Dashboard> getDashboardsMeta(boolean shared) throws IOException, TokenExpiredException {
+        String requestUrl = RESOURCE + "/meta?shared=" + shared;
         ArgusResponse response = getClient().executeHttpRequest(ArgusHttpClient.RequestType.GET, requestUrl, null);
 
         assertValidResponse(response, requestUrl);

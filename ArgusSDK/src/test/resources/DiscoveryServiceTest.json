@@ -1,15 +1,29 @@
 [{
     "type": "GET",
-    "endpoint": "/discover?namespace=nsReg&scope=scpReg&metric=metReg&tagk=tkReg&tagv=tvReg&limit=1",
+    "endpoint": "/discover/metrics/schemarecords?namespace=nsReg&scope=scpReg&metric=metReg&tagk=tkReg&tagv=tvReg&limit=1",
     "jsonInput" :null,
     "status": 200,
     "message": "success",
-    "jsonOutput" : "[{\"namespace\":\"nsReg\",\"scope\":\"scpReg\",\"metric\":\"metReg\",\"tagKey\":\"tkReg\",\"tagValue\":\"tvReg\"}]"
+    "jsonOutput" : "[{\"namespace\":\"nsReg\",\"scope\":\"scpReg\",\"metric\":\"metReg\",\"tagk\":\"tkReg\",\"tagv\":\"tvReg\"}]"
 },{
     "type": "GET",
-    "endpoint": "/discover?namespace=nsReg&scope=scpReg&metric=metReg&tagk=tkReg&tagv=tvReg&limit=2&type=namespace",
+    "endpoint": "/discover/metrics/schemarecords?namespace=nsReg&scope=scpReg&metric=metReg&tagk=tkReg&tagv=tvReg&limit=2&type=namespace",
     "jsonInput" :null,
     "status": 200,
     "message": "success",
     "jsonOutput" : "[\"namespace1\",\"namespace2\"]"
+},{
+    "type": "POST",
+    "endpoint": "/discover/metrics/schemarecords",
+    "jsonInput" : "{\"namespace\":\"*\",\"scope\":\"scpReg\",\"metric\":\"*\",\"tagk\":\"*\",\"tagv\":\"*\",\"limit\":10,\"type\":null,\"scanStartSchemaRecord\":null}",
+    "status": 200,
+    "message": "success",
+    "jsonOutput" : "{\"data\":[{\"namespace\":\"nsReg\",\"scope\":\"scpReg\",\"metric\":\"metReg\",\"tagk\":\"tkReg\",\"tagv\":\"tvReg\"}],\"lastSchemaRecord\":null}"
+},{
+    "type": "POST",
+    "endpoint": "/discover/metrics/schemarecords",
+    "jsonInput" : "{\"namespace\":\"*\",\"scope\":\"scpReg\",\"metric\":\"*\",\"tagk\":\"*\",\"tagv\":\"*\",\"limit\":10,\"type\":\"namespace\",\"scanStartSchemaRecord\":null}",
+    "status": 200,
+    "message": "success",
+    "jsonOutput" : "{\"data\":[\"namespace1\",\"namespace2\"],\"lastSchemaRecord\":null}"
 }]

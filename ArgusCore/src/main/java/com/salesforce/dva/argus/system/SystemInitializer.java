@@ -46,20 +46,20 @@ import com.salesforce.dva.argus.service.annotation.DefaultAnnotationService;
 import com.salesforce.dva.argus.service.audit.DefaultAuditService;
 import com.salesforce.dva.argus.service.batch.DefaultBatchService;
 import com.salesforce.dva.argus.service.collect.DefaultCollectionService;
-import com.salesforce.dva.argus.service.history.DefaultHistoryService;
+import com.salesforce.dva.argus.service.jpa.DefaultChartService;
 import com.salesforce.dva.argus.service.jpa.DefaultDashboardService;
 import com.salesforce.dva.argus.service.jpa.DefaultDistributedSchedulingLockService;
 import com.salesforce.dva.argus.service.jpa.DefaultGlobalInterlockService;
 import com.salesforce.dva.argus.service.jpa.DefaultNamespaceService;
 import com.salesforce.dva.argus.service.jpa.DefaultServiceManagementService;
-import com.salesforce.dva.argus.service.jpa.DefaultUserService;
 import com.salesforce.dva.argus.service.management.DefaultManagementService;
 import com.salesforce.dva.argus.service.metric.AsyncMetricService;
 import com.salesforce.dva.argus.service.monitor.DefaultMonitorService;
 import com.salesforce.dva.argus.service.schema.CachedDiscoveryService;
 import com.salesforce.dva.argus.service.schema.DefaultDiscoveryService;
 import com.salesforce.dva.argus.service.tsdb.CachedTSDBService;
-import com.salesforce.dva.argus.service.warden.DefaultWardenService;
+import com.salesforce.dva.argus.service.users.CachedUserService;
+import com.salesforce.dva.argus.service.users.DefaultUserService;
 import com.salesforce.dva.argus.system.SystemConfiguration.Property;
 
 import org.slf4j.LoggerFactory;
@@ -67,6 +67,7 @@ import org.slf4j.LoggerFactory;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -75,6 +76,7 @@ import java.util.Properties;
  * @author  Tom Valine (tvaline@salesforce.com), Bhinav Sura (bhinav.sura@salesforce.com)
  */
 final class SystemInitializer extends AbstractModule {
+    private static final String JPA_PROPERTY_PREFIX = "system.property.jpa.";
 
     //~ Instance fields ******************************************************************************************************************************
 
@@ -176,7 +178,22 @@ final class SystemInitializer extends AbstractModule {
     }
 
     private void configurePersistence() {
-        binder().install(new JpaPersistModule("argus-pu"));
+        JpaPersistModule jpaPersistModule = new JpaPersistModule("argus-pu");
+        Properties jpaProperties = getJpaProperties(_systemConfiguration);
+        jpaPersistModule.properties(jpaProperties);
+        binder().install(jpaPersistModule);
+    }
+
+    private Properties getJpaProperties(Properties properties) {
+        Properties jpaProperties = new Properties();
+        for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+            String propertyNameWithPrefix = (String) entry.getKey();
+            if (propertyNameWithPrefix.startsWith(JPA_PROPERTY_PREFIX)) {
+                String propertyName = propertyNameWithPrefix.substring(JPA_PROPERTY_PREFIX.length());
+                jpaProperties.put(propertyName, entry.getValue());
+            }
+        }
+        return jpaProperties;
     }
 
     private void configureLogging() {
@@ -214,29 +231,32 @@ final class SystemInitializer extends AbstractModule {
         bindConcreteClass(Property.MAIL_SERVICE_IMPL_CLASS, MailService.class);
         bindConcreteClass(Property.AUTH_SERVICE_IMPL_CLASS, AuthService.class);
         bindConcreteClass(Property.SCHEMA_SERVICE_IMPL_CLASS, SchemaService.class);
+        bindConcreteClass(Property.HISTORY_SERVICE_IMPL_CLASS, HistoryService.class);
+        bindConcreteClass(Property.CALLBACK_SERVICE_IMPL_CLASS, CallbackService.class);
+        bindConcreteClass(Property.WARDEN_SERVICE_IMPL_CLASS, WardenService.class);
 
         // Named annotation binding
         bindConcreteClassWithNamedAnnotation(getConcreteClassToBind(Property.TSDB_SERVICE_IMPL_CLASS, TSDBService.class), TSDBService.class);
         bindConcreteClassWithNamedAnnotation(DefaultDiscoveryService.class, DiscoveryService.class);
+        bindConcreteClassWithNamedAnnotation(DefaultUserService.class, UserService.class);
 
         // static binding
         bindConcreteClass(CachedTSDBService.class, TSDBService.class);
-        bindConcreteClass(DefaultUserService.class, UserService.class);
+        bindConcreteClass(CachedUserService.class, UserService.class);
         bindConcreteClass(DefaultDashboardService.class, DashboardService.class);
         bindConcreteClass(DefaultCollectionService.class, CollectionService.class);
         bindConcreteClass(AsyncMetricService.class, MetricService.class);
         bindConcreteClass(DefaultBatchService.class, BatchService.class);
         bindConcreteClass(DefaultGlobalInterlockService.class, GlobalInterlockService.class);
         bindConcreteClass(DefaultMonitorService.class, MonitorService.class);
-        bindConcreteClass(DefaultWardenService.class, WardenService.class);
         bindConcreteClass(DefaultAnnotationService.class, AnnotationService.class);
         bindConcreteClass(DefaultManagementService.class, ManagementService.class);
         bindConcreteClass(DefaultServiceManagementService.class, ServiceManagementService.class);
         bindConcreteClass(DefaultAuditService.class, AuditService.class);
-        bindConcreteClass(DefaultHistoryService.class, HistoryService.class);
         bindConcreteClass(DefaultNamespaceService.class, NamespaceService.class);
         bindConcreteClass(CachedDiscoveryService.class, DiscoveryService.class);
         bindConcreteClass(DefaultDistributedSchedulingLockService.class, DistributedSchedulingLockService.class);
+        bindConcreteClass(DefaultChartService.class, ChartService.class);
     }
 
     private <T> void bindConcreteClass(Property property, Class<T> type) {
@@ -271,8 +291,11 @@ final class SystemInitializer extends AbstractModule {
         readFile(properties, _systemConfiguration.getValue(Property.MAIL_SERVICE_PROPERTY_FILE));
         readFile(properties, _systemConfiguration.getValue(Property.AUTH_SERVICE_PROPERTY_FILE));
         readFile(properties, _systemConfiguration.getValue(Property.SCHEMA_SERVICE_PROPERTY_FILE));
+        readFile(properties, _systemConfiguration.getValue(Property.HISTORY_SERVICE_PROPERTY_FILE));
         readFile(properties, _systemConfiguration.getValue(Property.TSDB_SERVICE_PROPERTY_FILE));
         readFile(properties, _systemConfiguration.getValue(Property.NOTIFIER_PROPERTY_FILE)); 
+        readFile(properties, _systemConfiguration.getValue(Property.ASYNCHBASE_PROPERTY_FILE));
+        readFile(properties, _systemConfiguration.getValue(Property.WARDEN_SERVICE_PROPERTY_FILE));
         return properties;
     }
 }

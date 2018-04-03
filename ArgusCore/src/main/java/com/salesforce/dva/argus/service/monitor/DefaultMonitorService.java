@@ -195,7 +195,7 @@ public class DefaultMonitorService extends DefaultJPAService implements MonitorS
 				
 				@Override
 				public void uncaughtException(Thread t, Throwable e) {
-					_logger.error("Uncaught exception occured while pushing monitor counters for {}. Reason: {}", HOSTNAME, e.getMessage());
+					_logger.error("Uncaught exception occurred while pushing monitor counters for {}. Reason: {}", HOSTNAME, e.getMessage());
 					t.interrupt();
 				}
 			});
@@ -334,7 +334,6 @@ public class DefaultMonitorService extends DefaultJPAService implements MonitorS
         _dashboardService.dispose();
         _alertService.dispose();
         _serviceManagementService.dispose();
-        // _tsdbService.dispose();
     }
 
     private void _setServiceEnabled(boolean enabled) {
@@ -350,7 +349,8 @@ public class DefaultMonitorService extends DefaultJPAService implements MonitorS
     }
 
     private boolean _isMonitoringServiceEnabled() {
-        return _serviceManagementService.isServiceEnabled(Service.MONITORING);
+        //return _serviceManagementService.isServiceEnabled(Service.MONITORING);
+    	return true;
     }
 
     private void _resetCountersForScope(String scope) {
@@ -616,7 +616,7 @@ public class DefaultMonitorService extends DefaultJPAService implements MonitorS
     private class MonitorThread extends Thread {
 
         /**
-         * Creates a new SchedulingThread object.
+         * Creates a new MonitorThread object.
          *
          * @param  name  The thread name.
          */
@@ -632,32 +632,43 @@ public class DefaultMonitorService extends DefaultJPAService implements MonitorS
                     try {
                         _pushCounters();
                     } catch (Exception ex) {
-                        _logger.error("Error occured while pushing monitor counters for {}. Reason: {}", HOSTNAME, ex.getMessage());
+                        _logger.error("Error occurred while pushing monitor counters for {}. Reason: {}", HOSTNAME, ex.getMessage());
                     }
                 }
             }
         }
 
         private void _pushCounters() {
+        	int sizeJVMMetrics = 0;
             _logger.debug("Pushing monitor service counters for {}.", HOSTNAME);
 
             Map<Metric, Double> counters = new HashMap<>();
-
+            
             _updateJVMStatsCounters();
+
             synchronized (_metrics) {
+                sizeJVMMetrics = _metrics.size();
                 counters.putAll(_metrics);
                 _metrics.clear();
             }
+            
+            if(counters.size() != sizeJVMMetrics){
+            	_logger.warn("Monitoring Service JVM Metrics and counters size are not equal");
+            	_logger.warn("JVM Metrics size = {}", sizeJVMMetrics);
+            	_logger.warn("counters size = {}", counters.size());
+            }
+            
 
             long timestamp = (System.currentTimeMillis() / 60000) * 60000L;
 
             for (Entry<Metric, Double> entry : counters.entrySet()) {
-                Map<Long, String> dataPoints = new HashMap<>(1);
+                Map<Long, Double> dataPoints = new HashMap<>(1);
 
-                dataPoints.put(timestamp, String.valueOf(entry.getValue()));
+                dataPoints.put(timestamp, entry.getValue());
                 entry.getKey().setDatapoints(dataPoints);
             }
             if (!isDisposed()) {
+            	_logger.info("Pushing {} monitoring metrics to TSDB.", counters.size());
                 _tsdbService.putMetrics(new ArrayList<>(counters.keySet()));
             }
         }
