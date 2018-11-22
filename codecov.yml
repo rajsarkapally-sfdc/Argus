@@ -1,0 +1,4 @@
+ignore:
+  - "ArgusCore/src/main/java/com/salesforce/dva/argus/service/MailService.java"
+  - "ArgusCore/src/main/java/com/salesforce/dva/argus/service/tsdb/PhoenixTSDBEngine.java"
+  - "ArgusCore/src/main/java/com/salesforce/dva/argus/service/tsdb/*"
